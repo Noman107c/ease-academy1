@@ -1,5 +1,4 @@
-zz
-
+// src/app/api/notifications/route.js
 import { NextResponse } from 'next/server';
 import { withAuth } from '@/backend/middleware/auth';
 import connectDB from '@/lib/database';
