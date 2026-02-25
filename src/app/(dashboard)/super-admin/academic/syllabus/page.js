@@ -4,18 +4,15 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import apiClient from '@/lib/api-client';
 import { toast } from 'sonner';
-import { FileText, Plus, Search, Edit, Trash2, X, Eye, BookOpen, Calendar, User, CheckCircle } from 'lucide-react';
+import { FileText, Plus, Search, Edit, Trash2, X, Eye, Download, Upload, File } from 'lucide-react';
 import Input from '@/components/ui/input';
 import Dropdown from '@/components/ui/dropdown';
+import AcademicYearDropdown from '@/components/ui/AcademicYearDropdown';
 import Modal from '@/components/ui/modal';
 import Table, { TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
 import BranchSelect from '@/components/ui/branch-select';
 import ClassSelect from '@/components/ui/class-select';
-import LevelSelect from '@/components/ui/level-select';
-import GradeSelect from '@/components/ui/grade-select';
-import StreamSelect from '@/components/ui/stream-select';
-import GradeStreamSubjectSelect from '@/components/ui/grade-stream-subject-select';
 import { API_ENDPOINTS } from '@/constants/api-endpoints';
 
 export default function SyllabusPage() {
@@ -24,9 +21,6 @@ export default function SyllabusPage() {
   const [subjects, setSubjects] = useState([]);
   const [classes, setClasses] = useState([]);
   const [branches, setBranches] = useState([]);
-  const [levels, setLevels] = useState([]);
-  const [grades, setGrades] = useState([]);
-  const [streams, setStreams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
@@ -36,73 +30,25 @@ export default function SyllabusPage() {
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedBranch, setSelectedBranch] = useState('');
   const [selectedClassFilter, setSelectedClassFilter] = useState('');
-  const [filteredSubjects, setFilteredSubjects] = useState([]);
+  const [uploading, setUploading] = useState(false);
 
   const currentYear = new Date().getFullYear();
   const [formData, setFormData] = useState({
-    title: '',
-    academicYear: `${currentYear}-${currentYear + 1}`,
-    subjectId: '',
-    classId: '',
     branchId: '',
-    levelId: '',
-    gradeId: '',
-    streamId: '',
-    overview: '',
+    classId: '',
+    subjectId: '',
+    academicYear: '',
     status: 'draft',
-    courseObjectives: [],
-    learningOutcomes: [],
-    teachingMethods: [],
-    chapters: [],
-    assessmentPlan: {
-      continuousAssessment: 20,
-      midTermExam: 30,
-      finalExam: 50,
-      project: 0,
-      practical: 0,
-    },
+    pdfFile: null,
   });
-  const formRef = useRef(null);
 
-  // temp inputs for arrays
-  const [newObjective, setNewObjective] = useState('');
-  const [newOutcome, setNewOutcome] = useState('');
-  const [newMethod, setNewMethod] = useState('');
-  const [newChapter, setNewChapter] = useState({ chapterNumber: '', chapterName: '', marks: '' });
+  const fileInputRef = useRef(null);
+  const formRef = useRef(null);
 
   useEffect(() => {
     fetchSyllabus();
-    fetchSubjects();
-    fetchClasses();
     fetchBranches();
-    fetchLevels();
-    fetchStreams();
   }, [searchTerm, selectedSubject, selectedBranch, selectedClassFilter]);
-
-  // Load filtered subjects when grade/stream changes in form
-  useEffect(() => {
-    if (formData.gradeId) {
-      loadFilteredSubjects(formData.gradeId, formData.streamId);
-    } else {
-      setFilteredSubjects([]);
-    }
-  }, [formData.gradeId, formData.streamId]);
-
-  const loadFilteredSubjects = async (gradeId, streamId) => {
-    try {
-      const params = new URLSearchParams();
-      if (gradeId) params.append('gradeId', gradeId);
-      if (streamId) params.append('streamId', streamId);
-      
-      const res = await apiClient.get(`${API_ENDPOINTS.SCHOOL.GRADE_STREAM_SUBJECTS.LIST}?${params}`);
-      if (res?.success) {
-        const subjects = (res.data || []).map(item => item.subjectId).filter(Boolean);
-        setFilteredSubjects(subjects);
-      }
-    } catch (err) {
-      console.error('Failed to load filtered subjects:', err);
-    }
-  };
 
   const fetchSyllabus = async () => {
     try {
@@ -128,34 +74,6 @@ export default function SyllabusPage() {
     }
   };
 
-  // Fetch subjects. If classId is provided, fetch only subjects for that class.
-  // When called without classId (e.g. top-level filter) it returns all subjects.
-  const fetchSubjects = async (classId, branchId) => {
-    try {
-      const params = new URLSearchParams({ limit: '200', ...(classId && { classId }), ...(branchId && { branchId }) });
-      const response = await apiClient.get(`/api/super-admin/subjects?${params}`);
-      if (response?.success) {
-        const list = response.data || response.data?.subjects || [];
-        setSubjects(list);
-      }
-    } catch (error) {
-      console.error('Failed to fetch subjects:', error);
-    }
-  };
-
-  const fetchClasses = async (branchId) => {
-    try {
-      const params = new URLSearchParams({ limit: '200', ...(branchId && { branchId }) });
-      const response = await apiClient.get(`/api/super-admin/classes?${params}`);
-      if (response?.success) {
-        const list = response.data || response.data?.classes || [];
-        setClasses(list);
-      }
-    } catch (error) {
-      console.error('Failed to fetch classes:', error);
-    }
-  };
-
   const fetchBranches = async () => {
     try {
       const response = await apiClient.get('/api/super-admin/branches?limit=200');
@@ -168,47 +86,141 @@ export default function SyllabusPage() {
     }
   };
 
-  const fetchLevels = async () => {
+  const fetchClasses = async (branchId) => {
     try {
-      const response = await apiClient.get('/api/school/levels?limit=100');
+      console.log('Fetching classes for branchId:', branchId);
+      const params = new URLSearchParams({ limit: '200', ...(branchId && { branchId }) });
+      const response = await apiClient.get(`/api/super-admin/classes?${params}`);
+      console.log('Classes response:', response);
+      
       if (response?.success) {
-        setLevels(response.data || []);
+        const list = response.data || response.data?.classes || [];
+        setClasses(list);
+        console.log('Classes set:', list.length);
+        
+        if (list.length === 0) {
+          toast.info('No classes found for this branch');
+        }
+      } else {
+        console.error('Failed to fetch classes:', response.message);
+        toast.error(response.message || 'Failed to fetch classes');
       }
     } catch (error) {
-      console.error('Failed to fetch levels:', error);
+      console.error('Failed to fetch classes:', error);
+      toast.error('Error loading classes. Please try again.');
     }
   };
 
-  const fetchGrades = async (levelId) => {
+  const fetchSubjects = async (classId, branchId) => {
     try {
-      const params = new URLSearchParams({ limit: '100', ...(levelId && { levelId }) });
-      const response = await apiClient.get(`/api/school/grades?${params}`);
+      console.log('Fetching subjects for classId:', classId, 'branchId:', branchId);
+      const params = new URLSearchParams({ limit: '200', ...(classId && { classId }), ...(branchId && { branchId }) });
+      const response = await apiClient.get(`/api/super-admin/subjects?${params}`);
+      console.log('Subjects response:', response);
+      
       if (response?.success) {
-        setGrades(response.data || []);
+        const list = response.data || response.data?.subjects || [];
+        setSubjects(list);
+        console.log('Subjects set:', list.length);
+        
+        if (list.length === 0) {
+          toast.info('No subjects found for this class');
+        }
+      } else {
+        console.error('Failed to fetch subjects:', response.message);
+        toast.error(response.message || 'Failed to fetch subjects');
       }
     } catch (error) {
-      console.error('Failed to fetch grades:', error);
+      console.error('Failed to fetch subjects:', error);
+      toast.error('Error loading subjects. Please try again.');
     }
   };
 
-  const fetchStreams = async () => {
-    try {
-      const response = await apiClient.get('/api/school/streams?limit=100');
-      if (response?.success) {
-        setStreams(response.data || []);
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.type !== 'application/pdf') {
+        toast.error('Please select a PDF file');
+        return;
       }
-    } catch (error) {
-      console.error('Failed to fetch streams:', error);
+      if (file.size > 10 * 1024 * 1024) { // 10MB limit
+        toast.error('File size should be less than 10MB');
+        return;
+      }
+      setFormData({ ...formData, pdfFile: file });
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!formData.branchId) {
+      toast.error('Please select a branch');
+      return;
+    }
+    if (!formData.classId) {
+      toast.error('Please select a class');
+      return;
+    }
+    if (!formData.subjectId) {
+      toast.error('Please select a subject');
+      return;
+    }
+    if (!formData.pdfFile && !editingSyllabus?.pdfFile?.url) {
+      toast.error('Please upload a PDF file');
+      return;
+    }
+
     try {
+      setUploading(true);
+
+      let pdfUrl = editingSyllabus?.pdfFile?.url;
+      let pdfPublicId = editingSyllabus?.pdfFile?.publicId;
+      let pdfName = editingSyllabus?.pdfFile?.name;
+
+      // Upload PDF if new file selected
+      if (formData.pdfFile) {
+        const uploadFormData = new FormData();
+        uploadFormData.append('file', formData.pdfFile);
+        uploadFormData.append('fileType', 'syllabus_pdf');
+        uploadFormData.append('classId', formData.classId);
+        uploadFormData.append('branchId', formData.branchId);
+        
+        if (editingSyllabus?._id) {
+          uploadFormData.append('syllabusId', editingSyllabus._id);
+        }
+
+        const uploadResponse = await apiClient.post('/api/upload', uploadFormData);
+        
+        if (uploadResponse.success) {
+          pdfUrl = uploadResponse.data.url;
+          pdfPublicId = uploadResponse.data.publicId;
+          pdfName = formData.pdfFile.name;
+        } else {
+          toast.error('Failed to upload PDF');
+          return;
+        }
+      }
+
+      const syllabusData = {
+        branchId: formData.branchId,
+        classId: formData.classId,
+        subjectId: formData.subjectId,
+        academicYear: formData.academicYear,
+        status: formData.status,
+        title: `${formData.subjectId} Syllabus - ${formData.academicYear}`,
+        pdfFile: {
+          url: pdfUrl,
+          publicId: pdfPublicId,
+          name: pdfName,
+          uploadedAt: new Date(),
+        },
+      };
+
       if (editingSyllabus) {
         const response = await apiClient.put(
           `/api/super-admin/syllabus/${editingSyllabus._id}`,
-          formData
+          syllabusData
         );
         if (response.success) {
           toast.success('Syllabus updated successfully');
@@ -216,7 +228,7 @@ export default function SyllabusPage() {
           handleCloseModal();
         }
       } else {
-        const response = await apiClient.post('/api/super-admin/syllabus', formData);
+        const response = await apiClient.post('/api/super-admin/syllabus', syllabusData);
         if (response.success) {
           toast.success('Syllabus created successfully');
           fetchSyllabus();
@@ -226,50 +238,46 @@ export default function SyllabusPage() {
     } catch (error) {
       toast.error(error.message || 'Failed to save syllabus');
       console.error(error);
+    } finally {
+      setUploading(false);
     }
   };
 
   const handleEdit = async (syl) => {
     setEditingSyllabus(syl);
+    const branchId = syl.branchId?._id || syl.branchId;
+    const classId = syl.classId?._id || syl.classId;
+    const subjectId = syl.subjectId?._id || syl.subjectId;
+    const academicYearId = syl.academicYear?._id || syl.academicYear || '';
+    
     setFormData({
-      title: syl.title || '',
-      academicYear: syl.academicYear || '',
-      subjectId: syl.subjectId?._id || '',
-      classId: syl.classId?._id || '',
-      branchId: syl.branchId?._id || '',
-      levelId: syl.levelId?._id || '',
-      gradeId: syl.gradeId?._id || '',
-      streamId: syl.streamId?._id || '',
-      overview: syl.overview || '',
+      branchId: branchId || '',
+      classId: classId || '',
+      subjectId: subjectId || '',
+      academicYear: academicYearId,
       status: syl.status || 'draft',
-      courseObjectives: syl.courseObjectives || [],
-      learningOutcomes: syl.learningOutcomes || [],
-      teachingMethods: syl.teachingMethods || [],
-      chapters: syl.chapters || [],
-      assessmentPlan: syl.assessmentPlan || {
-        continuousAssessment: 20,
-        midTermExam: 30,
-        finalExam: 50,
-        project: 0,
-        practical: 0,
-      },
+      pdfFile: null,
     });
-    // preload classes & subjects for this branch/class so modal dropdowns are populated
-    const branchId = syl.branchId?._id || '';
-    const classId = syl.classId?._id || '';
-    if (branchId) fetchClasses(branchId);
-    if (classId) fetchSubjects(classId, branchId);
+    
+    // Load classes and subjects for this syllabus
+    if (branchId) {
+      fetchClasses(branchId);
+    }
+    if (classId && branchId) {
+      fetchSubjects(classId, branchId);
+    }
+    
     setShowModal(true);
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Are you sure?')) return;
+    if (!confirm('Are you sure you want to delete this syllabus?')) return;
     
     try {
       const response = await apiClient.delete(`/api/super-admin/syllabus/${id}`);
       
       if (response.success) {
-        toast.success('Syllabus archived successfully');
+        toast.success('Syllabus deleted successfully');
         fetchSyllabus();
       }
     } catch (error) {
@@ -285,35 +293,59 @@ export default function SyllabusPage() {
   const handleCloseModal = () => {
     setShowModal(false);
     setEditingSyllabus(null);
-    const currentYear = new Date().getFullYear();
     setFormData({
-      title: '',
-      academicYear: `${currentYear}-${currentYear + 1}`,
-      subjectId: '',
-      classId: '',
       branchId: '',
-      levelId: '',
-      gradeId: '',
-      streamId: '',
-      overview: '',
+      classId: '',
+      subjectId: '',
+      academicYear: '',
       status: 'draft',
-      courseObjectives: [],
-      learningOutcomes: [],
-      teachingMethods: [],
-      chapters: [],
-      assessmentPlan: {
-        continuousAssessment: 20,
-        midTermExam: 30,
-        finalExam: 50,
-        project: 0,
-        practical: 0,
-      },
+      pdfFile: null,
     });
-    setFilteredSubjects([]);
-    setNewObjective('');
-    setNewOutcome('');
-    setNewMethod('');
-    setNewChapter({ chapterNumber: '', chapterName: '', marks: '' });
+    setSubjects([]);
+    setClasses([]);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  // Handle filter changes
+  const handleBranchFilterChange = (branchId) => {
+    setSelectedBranch(branchId);
+    setSelectedClassFilter('');
+    setSelectedSubject('');
+    if (branchId) {
+      fetchClasses(branchId);
+    } else {
+      setClasses([]);
+    }
+  };
+
+  const handleClassFilterChange = (classId) => {
+    setSelectedClassFilter(classId);
+    setSelectedSubject('');
+    if (classId && selectedBranch) {
+      fetchSubjects(classId, selectedBranch);
+    }
+  };
+
+  // Handle form field changes
+  const handleFormBranchChange = (branchId) => {
+    setFormData({ ...formData, branchId, classId: '', subjectId: '' });
+    setSubjects([]);
+    if (branchId) {
+      fetchClasses(branchId);
+    } else {
+      setClasses([]);
+    }
+  };
+
+  const handleFormClassChange = (classId) => {
+    setFormData({ ...formData, classId, subjectId: '' });
+    if (classId && formData.branchId) {
+      fetchSubjects(classId, formData.branchId);
+    } else {
+      setSubjects([]);
+    }
   };
 
   return (
@@ -323,7 +355,7 @@ export default function SyllabusPage() {
           <FileText className="h-7 w-7" />
           Syllabus Management
         </h1>
-        <p className="text-gray-600 mt-1">Create and manage course syllabus</p>
+        <p className="text-gray-600 mt-1">Upload and manage course syllabus PDFs</p>
       </div>
 
       {/* Filters */}
@@ -334,14 +366,11 @@ export default function SyllabusPage() {
           </div>
 
           <div className="w-full sm:w-56">
-            <Dropdown id="filter-branch" name="branch" value={selectedBranch} onChange={(e) => {
-              const b = e.target.value; setSelectedBranch(b);
-              if (b) { fetchClasses(b); fetchSubjects(undefined, b); } else { fetchClasses(); fetchSubjects(); }
-            }} options={[{label: 'All Branches', value: ''}, ...branches.map(br=>({label: br.name, value: br._id}))]} placeholder="All Branches" />
+            <Dropdown id="filter-branch" name="branch" value={selectedBranch} onChange={(e) => handleBranchFilterChange(e.target.value)} options={[{label: 'All Branches', value: ''}, ...branches.map(br=>({label: br.name, value: br._id}))]} placeholder="All Branches" />
           </div>
 
           <div className="w-full sm:w-56">
-            <Dropdown id="filter-class" name="class" value={selectedClassFilter} onChange={(e)=>setSelectedClassFilter(e.target.value)} options={[{label:'All Classes', value:''}, ...classes.map(c=>({label:c.name,value:c._id}))]} placeholder="All Classes" />
+            <Dropdown id="filter-class" name="class" value={selectedClassFilter} onChange={(e) => handleClassFilterChange(e.target.value)} options={[{label:'All Classes', value:''}, ...classes.map(c=>({label:c.name,value:c._id}))]} placeholder="All Classes" />
           </div>
 
           <div className="w-full sm:w-56">
@@ -368,11 +397,11 @@ export default function SyllabusPage() {
           <Table className="w-full">
             <TableHeader className="bg-gray-50 border-b border-gray-200">
               <TableRow>
-                <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</TableHead>
                 <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject</TableHead>
-                <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Grade</TableHead>
-                <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stream</TableHead>
+                <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Class</TableHead>
+                <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Branch</TableHead>
                 <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Year</TableHead>
+                <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PDF</TableHead>
                 <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</TableHead>
                 <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</TableHead>
               </TableRow>
@@ -381,17 +410,33 @@ export default function SyllabusPage() {
             <TableBody className="bg-white divide-y divide-gray-200">
               {syllabus.map((syl) => (
                 <TableRow key={syl._id} className="hover:bg-gray-50">
-                  <TableCell className="px-6 py-4 text-sm font-medium text-gray-900">{syl.title}</TableCell>
-                  <TableCell className="px-6 py-4 text-sm text-gray-900">{syl.subjectId?.name || '-'}</TableCell>
-                  <TableCell className="px-6 py-4 text-sm text-gray-900">{syl.gradeId?.name || '-'}</TableCell>
-                  <TableCell className="px-6 py-4 text-sm text-gray-900">{syl.streamId?.name || <span className="italic text-gray-400">All</span>}</TableCell>
-                  <TableCell className="px-6 py-4 text-sm text-gray-900">{syl.academicYear}</TableCell>
+                  <TableCell className="px-6 py-4 text-sm font-medium text-gray-900">{syl.subjectId?.name || '-'}</TableCell>
+                  <TableCell className="px-6 py-4 text-sm text-gray-900">{syl.classId?.name || '-'}</TableCell>
+                  <TableCell className="px-6 py-4 text-sm text-gray-900">{syl.branchId?.name || '-'}</TableCell>
+                  <TableCell className="px-6 py-4 text-sm text-gray-900">{syl.academicYear?.yearName || syl.academicYear || '-'}</TableCell>
+                  <TableCell className="px-6 py-4 text-sm">
+                    {syl.pdfFile?.url ? (
+                      <a 
+                        href={syl.pdfFile.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-900 flex items-center gap-1"
+                      >
+                        <File className="h-4 w-4" />
+                        View PDF
+                      </a>
+                    ) : (
+                      <span className="text-gray-400">No PDF</span>
+                    )}
+                  </TableCell>
                   <TableCell className="px-6 py-4">
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                       syl.status === 'approved'
                         ? 'bg-green-100 text-green-800'
                         : syl.status === 'submitted'
                         ? 'bg-blue-100 text-blue-800'
+                        : syl.status === 'published'
+                        ? 'bg-purple-100 text-purple-800'
                         : 'bg-gray-100 text-gray-800'
                     }`}>
                       {syl.status.charAt(0).toUpperCase() + syl.status.slice(1)}
@@ -416,7 +461,7 @@ export default function SyllabusPage() {
         open={showModal}
         onClose={handleCloseModal}
         title={editingSyllabus ? 'Edit Syllabus' : 'Add New Syllabus'}
-        size="lg"
+        size="md"
         footer={
           <div className="flex justify-end gap-3">
             <button
@@ -429,258 +474,134 @@ export default function SyllabusPage() {
             <button
               type="button"
               onClick={() => formRef.current?.requestSubmit?.() || formRef.current?.submit?.()}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              disabled={uploading}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
             >
-              {editingSyllabus ? 'Update' : 'Add'} Syllabus
+              {uploading ? 'Uploading...' : (editingSyllabus ? 'Update' : 'Add')} Syllabus
             </button>
           </div>
         }
       >
         <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
-                  <Input
-                    label="Syllabus Title"
-                    type="text"
-                    required
-                    value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    placeholder="e.g. Mathematics Grade 10 Science Stream 2025-2026"
-                  />
-                </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Branch *</label>
+            <Dropdown
+              id="form-branch"
+              name="branchId"
+              value={formData.branchId}
+              onChange={(e) => handleFormBranchChange(e.target.value)}
+              options={[
+                { label: 'Select Branch', value: '' },
+                ...branches.map(br => ({ label: br.name, value: br._id }))
+              ]}
+              placeholder="Select Branch"
+            />
+          </div>
 
-                <BranchSelect
-                  label="Branch (Optional)"
-                  name="branchId"
-                  value={formData.branchId}
-                  onChange={(e) => {
-                    const branchId = e.target.value;
-                    setFormData({ ...formData, branchId, classId: '' });
-                    if (branchId) fetchClasses(branchId);
-                    else fetchClasses();
-                  }}
-                  branches={branches}
-                  placeholder="Select Branch (optional)"
-                />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Class *</label>
+            <Dropdown
+              id="form-class"
+              name="classId"
+              value={formData.classId}
+              onChange={(e) => handleFormClassChange(e.target.value)}
+              options={[
+                { label: formData.branchId ? 'Select Class' : 'Select Branch first', value: '' },
+                ...classes.map(c => ({ label: c.name, value: c._id }))
+              ]}
+              placeholder="Select Class"
+              disabled={!formData.branchId}
+            />
+          </div>
 
-                <ClassSelect
-                  label="Class (Optional)"
-                  name="classId"
-                  value={formData.classId}
-                  onChange={(e) => setFormData({ ...formData, classId: e.target.value })}
-                  classes={classes}
-                  placeholder="Select Class (optional)"
-                />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Subject *</label>
+            <Dropdown
+              id="form-subject"
+              name="subjectId"
+              value={formData.subjectId}
+              onChange={(e) => setFormData({ ...formData, subjectId: e.target.value })}
+              options={[
+                { label: formData.classId ? 'Select Subject' : 'Select Class first', value: '' },
+                ...subjects.map(s => ({ label: s.name, value: s._id }))
+              ]}
+              placeholder="Select Subject"
+              disabled={!formData.classId}
+            />
+          </div>
 
-                <LevelSelect
-                  label="Level"
-                  name="levelId"
-                  value={formData.levelId}
-                  onChange={(e) => {
-                    const levelId = e.target.value;
-                    setFormData({ ...formData, levelId, gradeId: '', streamId: '', subjectId: '' });
-                  }}
-                  placeholder="Select Level"
-                />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Academic Year *</label>
+              <AcademicYearDropdown
+                value={formData.academicYear}
+                onChange={(e) => setFormData({ ...formData, academicYear: e.target.value })}
+                branchId={formData.branchId}
+                required={true}
+                placeholder="Select Academic Year"
+              />
+            </div>
 
-                <GradeSelect
-                  label="Grade"
-                  name="gradeId"
-                  levelId={formData.levelId}
-                  value={formData.gradeId}
-                  onChange={(e) => {
-                    const gradeId = e.target.value;
-                    setFormData({ ...formData, gradeId, subjectId: '' });
-                  }}
-                  placeholder={formData.levelId ? "Select Grade" : "Select Level first"}
-                />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+              <Dropdown
+                name="status"
+                value={formData.status}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                options={[
+                  { label: 'Draft', value: 'draft' },
+                  { label: 'Submitted', value: 'submitted' },
+                  { label: 'Approved', value: 'approved' },
+                  { label: 'Published', value: 'published' }
+                ]}
+                placeholder="Select Status"
+              />
+            </div>
+          </div>
 
-                <StreamSelect
-                  label="Stream (Optional)"
-                  name="streamId"
-                  value={formData.streamId}
-                  onChange={(e) => {
-                    const streamId = e.target.value;
-                    setFormData({ ...formData, streamId, subjectId: '' });
-                  }}
-                  placeholder="Select Stream (optional)"
-                />
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
-                  <Dropdown
-                    name="subjectId"
-                    required
-                    value={formData.subjectId}
-                    onChange={(e) => setFormData({ ...formData, subjectId: e.target.value })}
-                    options={
-                      !formData.gradeId
-                        ? [{ label: 'Select Grade first', value: '' }]
-                        : filteredSubjects.length === 0
-                        ? [{ label: 'No subjects mapped to this grade/stream', value: '' }]
-                        : [
-                            { label: 'Select Subject', value: '' },
-                            ...filteredSubjects.map(s => ({ label: s.name || s, value: s._id || s }))
-                          ]
-                    }
-                    placeholder="Select Subject"
-                  />
-                </div>
-
-                <Input
-                  label="Academic Year"
-                  type="text"
-                  required
-                  value={formData.academicYear}
-                  onChange={(e) => setFormData({ ...formData, academicYear: e.target.value })}
-                  placeholder="e.g. 2025-2026"
-                />
-
-                <Dropdown
-                  label="Status"
-                  name="status"
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  options={[
-                    { label: 'Draft', value: 'draft' },
-                    { label: 'Submitted', value: 'submitted' },
-                    { label: 'Approved', value: 'approved' },
-                    { label: 'Published', value: 'published' }
-                  ]}
-                  placeholder="Select Status"
-                />
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Overview</label>
-                  <textarea
-                    value={formData.overview}
-                    onChange={(e) => setFormData({ ...formData, overview: e.target.value })}
-                    rows="3"
-                    placeholder="Brief description of the syllabus..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Syllabus PDF {editingSyllabus?.pdfFile?.url ? '(Already uploaded - select new to replace)' : '*'}
+            </label>
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-blue-500 transition-colors">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="application/pdf"
+                onChange={handleFileChange}
+                className="hidden"
+                id="pdf-upload"
+              />
+              <label htmlFor="pdf-upload" className="cursor-pointer">
+                <Upload className="mx-auto h-10 w-10 text-gray-400" />
+                <p className="mt-2 text-sm text-gray-600">
+                  {formData.pdfFile ? (
+                    <span className="font-medium text-blue-600">{formData.pdfFile.name}</span>
+                  ) : (
+                    <>
+                      <span className="font-medium text-blue-600">Click to upload</span> or drag and drop
+                    </>
+                  )}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">PDF only (max 10MB)</p>
+              </label>
+            </div>
+            {editingSyllabus?.pdfFile?.url && !formData.pdfFile && (
+              <div className="mt-2 p-2 bg-green-50 rounded-lg flex items-center gap-2">
+                <File className="h-4 w-4 text-green-600" />
+                <span className="text-sm text-green-700">Current: {editingSyllabus.pdfFile.name}</span>
+                <a 
+                  href={editingSyllabus.pdfFile.url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="ml-auto text-sm text-blue-600 hover:text-blue-800"
+                >
+                  View
+                </a>
               </div>
-
-                {/* Course Objectives */}
-                <Card>
-                  <CardContent>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Course Objectives</label>
-                    <div className="space-y-2">
-                      {formData.courseObjectives.map((obj, idx) => (
-                        <div key={idx} className="flex items-center justify-between gap-2 bg-gray-50 p-2 rounded">
-                          <div className="text-sm text-gray-800">{obj}</div>
-                          <button type="button" onClick={() => setFormData({ ...formData, courseObjectives: formData.courseObjectives.filter((_, i) => i !== idx) })} className="text-red-600">Remove</button>
-                        </div>
-                      ))}
-
-                      <div className="flex gap-2">
-                        <input value={newObjective} onChange={(e) => setNewObjective(e.target.value)} placeholder="Add objective" className="flex-1 px-3 py-2 border rounded" />
-                        <button type="button" onClick={() => { if (newObjective.trim()) { setFormData({ ...formData, courseObjectives: [...formData.courseObjectives, newObjective.trim()] }); setNewObjective(''); } }} className="px-3 py-2 bg-blue-600 text-white rounded">Add</button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Learning Outcomes */}
-                <Card className="mt-4">
-                  <CardContent>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Learning Outcomes</label>
-                    <div className="space-y-2">
-                      {formData.learningOutcomes.map((out, idx) => (
-                        <div key={idx} className="flex items-center justify-between gap-2 bg-gray-50 p-2 rounded">
-                          <div className="text-sm text-gray-800">{out}</div>
-                          <button type="button" onClick={() => setFormData({ ...formData, learningOutcomes: formData.learningOutcomes.filter((_, i) => i !== idx) })} className="text-red-600">Remove</button>
-                        </div>
-                      ))}
-
-                      <div className="flex gap-2">
-                        <input value={newOutcome} onChange={(e) => setNewOutcome(e.target.value)} placeholder="Add outcome" className="flex-1 px-3 py-2 border rounded" />
-                        <button type="button" onClick={() => { if (newOutcome.trim()) { setFormData({ ...formData, learningOutcomes: [...formData.learningOutcomes, newOutcome.trim()] }); setNewOutcome(''); } }} className="px-3 py-2 bg-blue-600 text-white rounded">Add</button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Teaching Methods */}
-                <Card className="mt-4">
-                  <CardContent>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Teaching Methods</label>
-                    <div className="flex flex-wrap gap-2 mb-2">
-                      {formData.teachingMethods.map((m, idx) => (
-                        <div key={idx} className="px-2 py-1 bg-gray-100 rounded flex items-center gap-2">
-                          <span className="text-sm text-gray-800">{m}</span>
-                          <button type="button" onClick={() => setFormData({ ...formData, teachingMethods: formData.teachingMethods.filter((_, i) => i !== idx) })} className="text-red-600">x</button>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="flex gap-2">
-                      <input value={newMethod} onChange={(e) => setNewMethod(e.target.value)} placeholder="Add method (e.g. Lecture)" className="flex-1 px-3 py-2 border rounded" />
-                      <button type="button" onClick={() => { if (newMethod.trim()) { setFormData({ ...formData, teachingMethods: [...formData.teachingMethods, newMethod.trim()] }); setNewMethod(''); } }} className="px-3 py-2 bg-blue-600 text-white rounded">Add</button>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Chapters */}
-                <Card className="mt-4">
-                  <CardContent>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Chapters</label>
-                    <div className="space-y-2">
-                      {formData.chapters.map((ch, idx) => (
-                        <div key={idx} className="flex items-center justify-between gap-2 bg-gray-50 p-2 rounded">
-                          <div>
-                            <div className="text-sm font-medium">{ch.chapterName} (#{ch.chapterNumber})</div>
-                            <div className="text-xs text-gray-600">Marks: {ch.marks}</div>
-                          </div>
-                          <button type="button" onClick={() => setFormData({ ...formData, chapters: formData.chapters.filter((_, i) => i !== idx) })} className="text-red-600">Remove</button>
-                        </div>
-                      ))}
-
-                      <div className="grid grid-cols-3 gap-2">
-                        <input value={newChapter.chapterNumber} onChange={(e) => setNewChapter({ ...newChapter, chapterNumber: e.target.value })} placeholder="Chapter #" className="px-3 py-2 border rounded" />
-                        <input value={newChapter.chapterName} onChange={(e) => setNewChapter({ ...newChapter, chapterName: e.target.value })} placeholder="Chapter title" className="px-3 py-2 border rounded" />
-                        <input value={newChapter.marks} onChange={(e) => setNewChapter({ ...newChapter, marks: e.target.value })} placeholder="Marks" className="px-3 py-2 border rounded" />
-                      </div>
-                      <div className="flex justify-end">
-                        <button type="button" onClick={() => {
-                          if (!newChapter.chapterName) return;
-                          setFormData({ ...formData, chapters: [...formData.chapters, { ...newChapter }] });
-                          setNewChapter({ chapterNumber: '', chapterName: '', marks: '' });
-                        }} className="px-3 py-2 bg-blue-600 text-white rounded">Add Chapter</button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Assessment Plan */}
-                <Card className="mt-4">
-                  <CardContent>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Assessment Plan (percentage)</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-xs text-gray-600">Continuous Assessment</label>
-                        <input type="number" value={formData.assessmentPlan.continuousAssessment} onChange={(e) => setFormData({ ...formData, assessmentPlan: { ...formData.assessmentPlan, continuousAssessment: Number(e.target.value) } })} className="w-full px-3 py-2 border rounded" />
-                      </div>
-                      <div>
-                        <label className="text-xs text-gray-600">Mid Term Exam</label>
-                        <input type="number" value={formData.assessmentPlan.midTermExam} onChange={(e) => setFormData({ ...formData, assessmentPlan: { ...formData.assessmentPlan, midTermExam: Number(e.target.value) } })} className="w-full px-3 py-2 border rounded" />
-                      </div>
-                      <div>
-                        <label className="text-xs text-gray-600">Final Exam</label>
-                        <input type="number" value={formData.assessmentPlan.finalExam} onChange={(e) => setFormData({ ...formData, assessmentPlan: { ...formData.assessmentPlan, finalExam: Number(e.target.value) } })} className="w-full px-3 py-2 border rounded" />
-                      </div>
-                      <div>
-                        <label className="text-xs text-gray-600">Project</label>
-                        <input type="number" value={formData.assessmentPlan.project} onChange={(e) => setFormData({ ...formData, assessmentPlan: { ...formData.assessmentPlan, project: Number(e.target.value) } })} className="w-full px-3 py-2 border rounded" />
-                      </div>
-                      <div>
-                        <label className="text-xs text-gray-600">Practical</label>
-                        <input type="number" value={formData.assessmentPlan.practical} onChange={(e) => setFormData({ ...formData, assessmentPlan: { ...formData.assessmentPlan, practical: Number(e.target.value) } })} className="w-full px-3 py-2 border rounded" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-            </form>
+            )}
+          </div>
+        </form>
       </Modal>
 
       {/* View Syllabus Modal */}
@@ -688,7 +609,7 @@ export default function SyllabusPage() {
         open={showViewModal}
         onClose={() => { setShowViewModal(false); setViewingSyllabus(null); }}
         title="Syllabus Details"
-        size="lg"
+        size="md"
         footer={
           <div className="flex justify-end gap-3">
             <button
@@ -697,98 +618,75 @@ export default function SyllabusPage() {
             >
               Close
             </button>
-            <button
-              onClick={() => {
-                setShowViewModal(false);
-                handleEdit(viewingSyllabus);
-              }}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
-            >
-              <Edit className="h-4 w-4" />
-              Edit Syllabus
-            </button>
+            {viewingSyllabus?.pdfFile?.url && (
+              <a
+                href={viewingSyllabus.pdfFile.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Download PDF
+              </a>
+            )}
           </div>
         }
       >
         {viewingSyllabus && (
-          <div className="space-y-6">
-            {/* Header Section */}
+          <div className="space-y-4">
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg border border-blue-100">
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">{viewingSyllabus.title}</h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">{viewingSyllabus.title || 'Syllabus'}</h2>
+              
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-xs text-gray-500 uppercase">Subject</p>
                   <p className="text-sm font-semibold text-gray-900">{viewingSyllabus.subjectId?.name || '-'}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500 uppercase">Grade</p>
-                  <p className="text-sm font-semibold text-gray-900">{viewingSyllabus.gradeId?.name || '-'}</p>
+                  <p className="text-xs text-gray-500 uppercase">Class</p>
+                  <p className="text-sm font-semibold text-gray-900">{viewingSyllabus.classId?.name || '-'}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500 uppercase">Stream</p>
-                  <p className="text-sm font-semibold text-gray-900">{viewingSyllabus.streamId?.name || <span className="italic text-gray-400">All Streams</span>}</p>
+                  <p className="text-xs text-gray-500 uppercase">Branch</p>
+                  <p className="text-sm font-semibold text-gray-900">{viewingSyllabus.branchId?.name || '-'}</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500 uppercase">Academic Year</p>
-                  <p className="text-sm font-semibold text-gray-900 flex items-center gap-1">
-                    <Calendar className="h-3 w-3" />
-                    {viewingSyllabus.academicYear}
-                  </p>
+                  <p className="text-sm font-semibold text-gray-900">{viewingSyllabus.academicYear?.yearName || viewingSyllabus.academicYear || '-'}</p>
                 </div>
               </div>
-              {(viewingSyllabus.branchId || viewingSyllabus.classId) && (
-                <div className="grid grid-cols-2 gap-4 mt-3 pt-3 border-t border-blue-200">
-                  {viewingSyllabus.branchId && (
-                    <div>
-                      <p className="text-xs text-gray-500 uppercase">Branch</p>
-                      <p className="text-sm font-semibold text-gray-900">{viewingSyllabus.branchId?.name}</p>
-                    </div>
-                  )}
-                  {viewingSyllabus.classId && (
-                    <div>
-                      <p className="text-xs text-gray-500 uppercase">Class</p>
-                      <p className="text-sm font-semibold text-gray-900">{viewingSyllabus.classId?.name}</p>
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
 
-            {/* Academic Hierarchy */}
-            {(viewingSyllabus.levelId || viewingSyllabus.gradeId || viewingSyllabus.streamId) && (
-              <Card>
-                <CardContent className="p-4">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                    <BookOpen className="h-4 w-4" />
-                    Academic Hierarchy
-                  </h3>
-                  <div className="grid grid-cols-3 gap-4">
-                    {viewingSyllabus.levelId && (
-                      <div>
-                        <p className="text-xs text-gray-500">Level</p>
-                        <p className="text-sm font-medium text-gray-900">{viewingSyllabus.levelId?.name || '-'}</p>
-                      </div>
-                    )}
-                    {viewingSyllabus.gradeId && (
-                      <div>
-                        <p className="text-xs text-gray-500">Grade</p>
-                        <p className="text-sm font-medium text-gray-900">{viewingSyllabus.gradeId?.name || '-'}</p>
-                      </div>
-                    )}
-                    {viewingSyllabus.streamId && (
-                      <div>
-                        <p className="text-xs text-gray-500">Stream</p>
-                        <p className="text-sm font-medium text-gray-900">{viewingSyllabus.streamId?.name || '-'}</p>
-                      </div>
-                    )}
+            {/* PDF Preview */}
+            {viewingSyllabus.pdfFile?.url ? (
+              <div className="border rounded-lg p-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <File className="h-8 w-8 text-red-600" />
+                  <div>
+                    <p className="font-medium text-gray-900">{viewingSyllabus.pdfFile.name || 'Syllabus PDF'}</p>
+                    <p className="text-sm text-gray-500">
+                      {viewingSyllabus.pdfFile.uploadedAt ? new Date(viewingSyllabus.pdfFile.uploadedAt).toLocaleDateString() : ''}
+                    </p>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+                <a
+                  href={viewingSyllabus.pdfFile.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full text-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  <Eye className="inline h-4 w-4 mr-2" />
+                  View PDF
+                </a>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                No PDF uploaded
+              </div>
             )}
 
             {/* Status */}
             <div className="flex items-center gap-2">
-              <CheckCircle className={`h-5 w-5 ${viewingSyllabus.status === 'approved' ? 'text-green-600' : 'text-gray-400'}`} />
               <span className={`px-3 py-1 text-sm font-medium rounded-full ${
                 viewingSyllabus.status === 'approved'
                   ? 'bg-green-100 text-green-800'
@@ -802,158 +700,18 @@ export default function SyllabusPage() {
               </span>
             </div>
 
-            {/* Overview */}
-            {viewingSyllabus.overview && (
-              <Card>
-                <CardContent className="p-4">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-2">Overview</h3>
-                  <p className="text-sm text-gray-600 leading-relaxed">{viewingSyllabus.overview}</p>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Course Objectives */}
-            {viewingSyllabus.courseObjectives?.length > 0 && (
-              <Card>
-                <CardContent className="p-4">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-3">Course Objectives</h3>
-                  <ul className="space-y-2">
-                    {viewingSyllabus.courseObjectives.map((obj, idx) => (
-                      <li key={idx} className="flex items-start gap-2">
-                        <span className="text-blue-600 font-bold text-sm mt-0.5">{idx + 1}.</span>
-                        <span className="text-sm text-gray-700">{obj}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Learning Outcomes */}
-            {viewingSyllabus.learningOutcomes?.length > 0 && (
-              <Card>
-                <CardContent className="p-4">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-3">Learning Outcomes</h3>
-                  <ul className="space-y-2">
-                    {viewingSyllabus.learningOutcomes.map((out, idx) => (
-                      <li key={idx} className="flex items-start gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                        <span className="text-sm text-gray-700">{out}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Teaching Methods */}
-            {viewingSyllabus.teachingMethods?.length > 0 && (
-              <Card>
-                <CardContent className="p-4">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-3">Teaching Methods</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {viewingSyllabus.teachingMethods.map((method, idx) => (
-                      <span key={idx} className="px-3 py-1 bg-indigo-50 text-indigo-700 text-sm rounded-full border border-indigo-200">
-                        {method}
-                      </span>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Chapters */}
-            {viewingSyllabus.chapters?.length > 0 && (
-              <Card>
-                <CardContent className="p-4">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-3">Chapters/Units</h3>
-                  <div className="space-y-3">
-                    {viewingSyllabus.chapters.map((ch, idx) => (
-                      <div key={idx} className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <p className="font-medium text-gray-900">
-                              Chapter {ch.chapterNumber}: {ch.chapterName}
-                            </p>
-                            {ch.duration && (
-                              <p className="text-xs text-gray-500 mt-1">
-                                {ch.duration.weeks && `${ch.duration.weeks} weeks`}
-                                {ch.duration.hours && ` • ${ch.duration.hours} hours`}
-                              </p>
-                            )}
-                          </div>
-                          {ch.marks && (
-                            <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded">
-                              {ch.marks} marks
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Assessment Plan */}
-            {viewingSyllabus.assessmentPlan && (
-              <Card>
-                <CardContent className="p-4">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-3">Assessment Plan</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                    {Object.entries(viewingSyllabus.assessmentPlan).map(([key, value]) => (
-                      <div key={key} className="text-center p-3 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg border border-gray-200">
-                        <p className="text-xs text-gray-500 capitalize mb-1">
-                          {key.replace(/([A-Z])/g, ' $1').trim()}
-                        </p>
-                        <p className="text-2xl font-bold text-gray-900">{value}%</p>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-3 text-right">
-                    <p className="text-sm text-gray-500">
-                      Total: <span className="font-semibold text-gray-900">
-                        {Object.values(viewingSyllabus.assessmentPlan).reduce((sum, val) => sum + (Number(val) || 0), 0)}%
-                      </span>
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Prepared/Approved By */}
-            {(viewingSyllabus.preparedBy || viewingSyllabus.approvedBy) && (
-              <Card>
-                <CardContent className="p-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    {viewingSyllabus.preparedBy && (
-                      <div>
-                        <p className="text-xs text-gray-500 mb-1 flex items-center gap-1">
-                          <User className="h-3 w-3" />
-                          Prepared By
-                        </p>
-                        <p className="text-sm font-medium text-gray-900">
-                          {viewingSyllabus.preparedBy?.firstName} {viewingSyllabus.preparedBy?.lastName}
-                        </p>
-                        <p className="text-xs text-gray-500">{viewingSyllabus.preparedBy?.employeeId}</p>
-                      </div>
-                    )}
-                    {viewingSyllabus.approvedBy && (
-                      <div>
-                        <p className="text-xs text-gray-500 mb-1 flex items-center gap-1">
-                          <CheckCircle className="h-3 w-3" />
-                          Approved By
-                        </p>
-                        <p className="text-sm font-medium text-gray-900">
-                          {viewingSyllabus.approvedBy?.firstName} {viewingSyllabus.approvedBy?.lastName}
-                        </p>
-                        <p className="text-xs text-gray-500">{viewingSyllabus.approvedBy?.employeeId}</p>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            <div className="flex justify-end gap-2 pt-4 border-t">
+              <button
+                onClick={() => {
+                  setShowViewModal(false);
+                  handleEdit(viewingSyllabus);
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+              >
+                <Edit className="h-4 w-4" />
+                Edit Syllabus
+              </button>
+            </div>
           </div>
         )}
       </Modal>

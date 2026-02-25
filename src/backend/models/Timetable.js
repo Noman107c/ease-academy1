@@ -9,9 +9,9 @@ const timetableSchema = new mongoose.Schema(
       trim: true,
     },
     academicYear: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'AcademicYear',
       required: [true, 'Academic year is required'],
-      trim: true,
     },
     
     // References

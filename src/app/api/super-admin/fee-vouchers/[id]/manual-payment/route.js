@@ -7,6 +7,7 @@ import connectDB from '@/lib/database';
 import { sendEmail } from '@/backend/utils/emailService';
 import { getStudentEmailTemplate } from '@/backend/templates/studentEmail';
 import { getParentEmailTemplate } from '@/backend/templates/parentEmail';
+import { ObjectId } from 'mongodb';
 
 // POST /api/super-admin/fee-vouchers/:id/manual-payment - Record manual payment (for super admin - cross branch)
 export const POST = withAuth(async (request, user, userDoc, context) => {
@@ -14,7 +15,20 @@ export const POST = withAuth(async (request, user, userDoc, context) => {
     await connectDB();
 
     // In Next.js 16, params is a Promise
-    const { id } = await context.params || {};
+    const params = await context.params || {};
+    const { id } = params;
+    
+    console.log('Super Admin Manual payment request - Voucher ID:', id);
+    
+    // Validate ID format
+    if (!id || !ObjectId.isValid(id)) {
+      console.log('Invalid voucher ID format:', id);
+      return NextResponse.json(
+        { success: false, message: 'Invalid voucher ID format' },
+        { status: 400 }
+      );
+    }
+    
     const body = await request.json();
     const { amount, paymentMethod, remarks, paymentDate } = body;
 
@@ -33,6 +47,8 @@ export const POST = withAuth(async (request, user, userDoc, context) => {
       .populate('classId', 'name code')
       .populate('branchId', 'name')
       .lean();
+
+    console.log('Voucher found:', voucher ? voucher._id : 'Not found');
 
     if (!voucher) {
       return NextResponse.json(
@@ -56,13 +72,14 @@ export const POST = withAuth(async (request, user, userDoc, context) => {
       );
     }
 
-    // Calculate remaining amount
+    // Calculate remaining amount with proper rounding
     const paidAmount = voucher.paidAmount || 0;
     const totalAmount = voucher.totalAmount || 0;
-    const remainingAmount = (voucher.remainingAmount ?? (totalAmount - paidAmount)) || 0;
+    const remainingAmount = Math.round((voucher.remainingAmount ?? (totalAmount - paidAmount)) * 100) / 100;
 
-    // Validate payment amount doesn't exceed remaining
-    if (amount > remainingAmount) {
+    // Validate payment amount doesn't exceed remaining (with small tolerance for floating point)
+    const paymentAmount = Math.round(amount * 100) / 100;
+    if (paymentAmount - remainingAmount > 0.01) {
       return NextResponse.json(
         { success: false, message: `Payment amount exceeds remaining amount of PKR ${remainingAmount}` },
         { status: 400 }
@@ -70,9 +87,11 @@ export const POST = withAuth(async (request, user, userDoc, context) => {
     }
 
     // Calculate new paid amount and status
-    const newPaidAmount = paidAmount + amount;
+    const newPaidAmount = Math.round((paidAmount + paymentAmount) * 100) / 100;
+    const newRemainingAmount = Math.round((totalAmount - newPaidAmount) * 100) / 100;
     let newStatus = 'partial';
-    if (newPaidAmount >= totalAmount) {
+    // Mark as paid if remaining amount is 0 or very small (due to floating point)
+    if (newRemainingAmount <= 0.01) {
       newStatus = 'paid';
     }
 
@@ -82,17 +101,18 @@ export const POST = withAuth(async (request, user, userDoc, context) => {
       {
         $set: {
           paidAmount: newPaidAmount,
-          remainingAmount: totalAmount - newPaidAmount,
+          remainingAmount: newRemainingAmount <= 0.01 ? 0 : newRemainingAmount,
           status: newStatus,
         },
         $push: {
-          payments: {
-            amount: amount,
-            paymentMethod: paymentMethod || 'cash',
+          paymentHistory: {
+            amount: paymentAmount,
             paymentDate: paymentDate ? new Date(paymentDate) : new Date(),
-            remarks: remarks || '',
-            recordedBy: user.userId,
+            paymentMethod: paymentMethod || 'cash',
             transactionId: `MANUAL-${Date.now()}`,
+            status: 'approved',
+            receivedBy: user.userId,
+            remarks: remarks || '',
           },
         },
       },

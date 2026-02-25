@@ -716,22 +716,33 @@ export default function SuperAdminDashboard() {
 
       {/* Analytics Charts */}
       <div className="space-y-6">
-        <h2 className="text-2xl font-bold">Analytics Overview</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Analytics Overview</h2>
+          <Button
+            onClick={fetchChartData}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className="w-4 h-4" />
+            <span className="hidden sm:inline">Refresh Charts</span>
+          </Button>
+        </div>
 
         {/* Row 1: Student Trends and Class-wise Students Count */}
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-2">
           <SuperAdminStudentTrends selectedBranch={selectedBranch} branchPerformance={branchPerformance} />
           <SuperAdminClassWiseStudents selectedBranch={selectedBranch} branchPerformance={branchPerformance} />
         </div>
 
         {/* Row 2: Branch-wise Students and Student Attendance Percentage */}
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-2">
           <SuperAdminBranchWiseStudents selectedBranch={selectedBranch} branchPerformance={branchPerformance} />
           <SuperAdminStudentAttendance selectedBranch={selectedBranch} branchPerformance={branchPerformance} />
         </div>
 
         {/* Row 3: Monthly Fee Collection and Pass vs Fail Ratio */}
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-2">
           <SuperAdminMonthlyFeeCollection selectedBranch={selectedBranch} branchPerformance={branchPerformance} />
           <SuperAdminPassFailRatio selectedBranch={selectedBranch} branchPerformance={branchPerformance} />
         </div>

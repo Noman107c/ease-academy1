@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -10,8 +10,8 @@ import Modal from '@/components/ui/modal';
 import FullPageLoader from '@/components/ui/full-page-loader';
 import ButtonLoader from '@/components/ui/button-loader';
 import BranchSelect from '@/components/ui/branch-select';
-import { Plus, Search, DollarSign, Trash2, Eye, ChevronDown, Download, Clock, CheckCircle, XCircle, RefreshCw, AlertTriangle, FileText, User, GraduationCap, Calendar, CreditCard, Check, X } from 'lucide-react';
-import Tabs, { TabPanel } from '@/components/ui/tabs';
+import { Plus, Search, DollarSign, Trash2, Eye, ChevronDown, Download, Clock, CheckCircle, XCircle, RefreshCw, AlertTriangle, FileText, User, GraduationCap, Calendar, CreditCard, Check, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { TabPanel } from '@/components/ui/tabs';
 import Textarea from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
@@ -36,66 +36,60 @@ const MONTHS = [
   { value: '12', label: 'December' },
 ];
 
-const STATUS_OPTIONS = [
-  { value: '', label: 'All Status' },
-  { value: 'pending', label: 'Pending' },
-  { value: 'paid', label: 'Paid' },
-  { value: 'partial', label: 'Partial' },
-  { value: 'overdue', label: 'Overdue' },
-  { value: 'cancelled', label: 'Cancelled' },
-];
+const ITEMS_PER_PAGE = 10;
+
+const getStatusBadge = (status) => {
+  const badges = {
+    pending: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
+    paid: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+    partial: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+    overdue: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+    cancelled: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400',
+  };
+  return badges[status] || badges.pending;
+};
 
 export default function SuperAdminFeeVouchersPage() {
   const { user, loading: authLoading } = useAuth();
-  const [vouchers, setVouchers] = useState([]);
-  const [pendingVouchers, setPendingVouchers] = useState([]);
-  const [paidVouchers, setPaidVouchers] = useState([]);
-  const [cancelledVouchers, setCancelledVouchers] = useState([]);
-  const [pendingPayments, setPendingPayments] = useState([]);
-  const [approvedPayments, setApprovedPayments] = useState([]);
-  const [rejectedPayments, setRejectedPayments] = useState([]);
-  const [selectedPayment, setSelectedPayment] = useState(null);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [actionType, setActionType] = useState(null); // 'approve', 'reject', or 'view'
-  const [rejectionReason, setRejectionReason] = useState('');
-  const [actionLoading, setActionLoading] = useState(false);
-  const [statistics, setStatistics] = useState({
-    pending: { count: 0, totalAmount: 0 },
-    paid: { count: 0, totalAmount: 0 },
-    cancelled: { count: 0, totalAmount: 0 },
-  });
-  const [paymentStatistics, setPaymentStatistics] = useState({
-    pending: { count: 0, totalAmount: 0 },
-    approved: { count: 0, totalAmount: 0 },
-    rejected: { count: 0, totalAmount: 0 },
-  });
-  const [templates, setTemplates] = useState([]);
-  const [branches, setBranches] = useState([]);
-  const [classes, setClasses] = useState([]);
-  const [students, setStudents] = useState([]);
-  const [loading, setLoading] = useState(true);
+  
+  // All vouchers loaded once
+  const [allVouchers, setAllVouchers] = useState([]);
+  
+  // Modal states
   const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isManualPaymentModalOpen, setIsManualPaymentModalOpen] = useState(false);
+  
+  // Loading states
+  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [viewingVoucher, setViewingVoucher] = useState(null);
   const [viewLoading, setViewLoading] = useState(false);
-  const [selectedVoucherForPayment, setSelectedVoucherForPayment] = useState(null);
-  const [selectedVoucherId, setSelectedVoucherId] = useState(null);
-  const [paymentAmount, setPaymentAmount] = useState('');
-  const [paymentRemarks, setPaymentRemarks] = useState('');
   const [processingPayment, setProcessingPayment] = useState(false);
+  
+  // View/Edit states
+  const [viewingVoucher, setViewingVoucher] = useState(null);
+  const [selectedVoucherForPayment, setSelectedVoucherForPayment] = useState(null);
+  
+  // Filter states
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
   const [monthFilter, setMonthFilter] = useState('');
   const [yearFilter, setYearFilter] = useState(new Date().getFullYear().toString());
-  const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, pages: 0 });
-  const [studentDropdownOpen, setStudentDropdownOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('all'); // 'all', 'pending', 'paid', 'cancelled'
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [error, setError] = useState(null);
-  const [successMessage, setSuccessMessage] = useState('');
-
+  const [branchFilter, setBranchFilter] = useState('');
+  
+  // Pagination state - separate for each tab
+  const [pagination, setPagination] = useState({
+    all: { page: 1 },
+    pending: { page: 1 },
+    partial: { page: 1 },
+    overdue: { page: 1 },
+    paid: { page: 1 },
+    cancelled: { page: 1 },
+  });
+  
+  // Tab state
+  const [activeTab, setActiveTab] = useState('all');
+  
+  // Form data for generate modal
   const [formData, setFormData] = useState({
     branchId: '',
     templateId: '',
@@ -107,105 +101,35 @@ export default function SuperAdminFeeVouchersPage() {
     year: new Date().getFullYear().toString(),
     remarks: '',
   });
+  
+  // Dropdown data
+  const [branches, setBranches] = useState([]);
+  const [templates, setTemplates] = useState([]);
+  const [classes, setClasses] = useState([]);
+  const [students, setStudents] = useState([]);
+  const [studentDropdownOpen, setStudentDropdownOpen] = useState(false);
+  
+  // Payment modal states
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentRemarks, setPaymentRemarks] = useState('');
 
   const formatStudent = (student) => {
     const nameRaw = student?.fullName || `${student?.firstName || ''} ${student?.lastName || ''}`;
     const name = (nameRaw || 'Student').trim() || 'Student';
-    const registrationNumber = student?.studentProfile?.registrationNumber || student?.registrationNumber || '—';
-    const rollNumber = student?.studentProfile?.rollNumber || student?.rollNumber || '—';
-    const section = student?.studentProfile?.section || '—';
+    const registrationNumber = student?.studentProfile?.registrationNumber || student?.registrationNumber || '---';
+    const rollNumber = student?.studentProfile?.rollNumber || student?.rollNumber || '---';
+    const section = student?.studentProfile?.section || '---';
     return { name, registrationNumber, rollNumber, section };
   };
 
+  // Load all vouchers once on mount
   useEffect(() => {
     if (authLoading || !user) return;
-
-    const fetchAllVouchers = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        // Fetch all vouchers with different statuses
-        const [pendingRes, paidRes, cancelledRes] = await Promise.all([
-          apiClient.get(API_ENDPOINTS.SUPER_ADMIN.FEE_VOUCHERS.LIST, { status: 'pending', limit: 1000 }),
-          apiClient.get(API_ENDPOINTS.SUPER_ADMIN.FEE_VOUCHERS.LIST, { status: 'paid', limit: 1000 }),
-          apiClient.get(API_ENDPOINTS.SUPER_ADMIN.FEE_VOUCHERS.LIST, { status: 'cancelled', limit: 1000 })
-        ]);
-
-        if (pendingRes.success) setPendingVouchers(pendingRes.data.vouchers || []);
-        if (paidRes.success) setPaidVouchers(paidRes.data.vouchers || []);
-        if (cancelledRes.success) setCancelledVouchers(cancelledRes.data.vouchers || []);
-
-        // Calculate statistics
-        const pending = pendingRes.data?.vouchers || [];
-        const paid = paidRes.data?.vouchers || [];
-        const cancelled = cancelledRes.data?.vouchers || [];
-
-        setStatistics({
-          pending: {
-            count: pending.length,
-            totalAmount: pending.reduce((sum, v) => sum + (v.totalAmount || 0), 0)
-          },
-          paid: {
-            count: paid.length,
-            totalAmount: paid.reduce((sum, v) => sum + (v.totalAmount || 0), 0)
-          },
-          cancelled: {
-            count: cancelled.length,
-            totalAmount: cancelled.reduce((sum, v) => sum + (v.totalAmount || 0), 0)
-          }
-        });
-
-        // Set all vouchers for the "all" tab
-        setVouchers([...pending, ...paid, ...cancelled]);
-
-      } catch (err) {
-        console.error('Error fetching vouchers:', err);
-        setError('Failed to load vouchers');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    const fetchPendingPayments = async () => {
-      try {
-        // Fetch pending payments using direct fetch with auth header
-        const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
-        const res = await fetch('/api/super-admin/pending-fees', {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        const response = await res.json();
-        if (response.success) {
-          setPendingPayments(response.data || []);
-          setApprovedPayments(response.approvedPayments || []);
-          setRejectedPayments(response.rejectedPayments || []);
-          setPaymentStatistics(response.statistics || {
-            pending: { count: 0, totalAmount: 0 },
-            approved: { count: 0, totalAmount: 0 },
-            rejected: { count: 0, totalAmount: 0 },
-          });
-        }
-      } catch (err) {
-        console.error('Error fetching pending payments:', err);
-      }
-    };
-
     fetchAllVouchers();
-    fetchPendingPayments();
-  }, [authLoading, user, refreshKey]);
+    fetchBranches();
+  }, [authLoading, user]);
 
-  useEffect(() => {
-    if (isGenerateModalOpen) {
-      fetchBranches();
-      // templates/classes loaded after branch selection
-    }
-  }, [isGenerateModalOpen]);
-
+  // Load templates/classes when branch changes in form
   useEffect(() => {
     if (formData.branchId) {
       fetchTemplates();
@@ -220,6 +144,7 @@ export default function SuperAdminFeeVouchersPage() {
     if (formData.classId) fetchStudents();
   }, [formData.classId]);
 
+  // Close dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (studentDropdownOpen && !e.target.closest('.student-dropdown-container')) {
@@ -230,47 +155,25 @@ export default function SuperAdminFeeVouchersPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [studentDropdownOpen]);
 
-  // Trigger search when filters change
+  // Reset pagination when filters change
   useEffect(() => {
-    if (!authLoading && user) {
-      fetchVouchers();
-    }
-  }, [statusFilter, monthFilter, yearFilter, formData.branchId, pagination.page]);
+    setPagination(prev => ({
+      ...prev,
+      [activeTab]: { page: 1 }
+    }));
+  }, [search, monthFilter, yearFilter, branchFilter, activeTab]);
 
-  // Client-side search filtering
-  const getFilteredVouchers = (voucherList) => {
-    if (!search.trim()) return voucherList;
-
-    const searchLower = search.toLowerCase();
-    return voucherList.filter((voucher) => {
-      const voucherNumber = voucher.voucherNumber?.toString().toLowerCase() || '';
-      const studentName = formatStudent(voucher.studentId).name.toLowerCase();
-      const registrationNumber = voucher.studentId?.studentProfile?.registrationNumber?.toString().toLowerCase() || '';
-      const rollNumber = voucher.studentId?.studentProfile?.rollNumber?.toString().toLowerCase() || '';
-
-      return voucherNumber.includes(searchLower) ||
-             studentName.includes(searchLower) ||
-             registrationNumber.includes(searchLower) ||
-             rollNumber.includes(searchLower);
-    });
-  };
-
-  const fetchVouchers = async () => {
+  // Fetch all vouchers in one API call
+  const fetchAllVouchers = async () => {
     try {
       setLoading(true);
-      const params = { page: pagination.page, limit: pagination.limit, search };
-      if (statusFilter) params.status = statusFilter;
-      if (monthFilter) params.month = monthFilter;
-      if (yearFilter) params.year = yearFilter;
-      if (formData.branchId) params.branchId = formData.branchId;
-
-      const response = await apiClient.get(API_ENDPOINTS.SUPER_ADMIN.FEE_VOUCHERS.LIST, params);
-      if (response && response.success) {
-        setVouchers(response.data.vouchers || []);
-        setPagination(response.data.pagination || { page: 1, limit: 10, total: 0, pages: 0 });
+      const response = await apiClient.get(API_ENDPOINTS.SUPER_ADMIN.FEE_VOUCHERS.LIST, { limit: 10000 });
+      
+      if (response.success) {
+        setAllVouchers(response.data.vouchers || []);
       }
-    } catch (error) {
-      console.error('Error fetching vouchers:', error);
+    } catch (err) {
+      console.error('Error fetching vouchers:', err);
       toast.error('Failed to load vouchers');
     } finally {
       setLoading(false);
@@ -280,7 +183,7 @@ export default function SuperAdminFeeVouchersPage() {
   const fetchBranches = async () => {
     try {
       const res = await apiClient.get(API_ENDPOINTS.SUPER_ADMIN.BRANCHES.LIST, { limit: 200 });
-      if (res && res.success) setBranches(res.data.branches || []);
+      if (res?.success) setBranches(res.data.branches || []);
     } catch (err) {
       console.error('Error loading branches:', err);
     }
@@ -289,8 +192,21 @@ export default function SuperAdminFeeVouchersPage() {
   const fetchTemplates = async () => {
     if (!formData.branchId) return;
     try {
-      const res = await apiClient.get(API_ENDPOINTS.SUPER_ADMIN.FEE_TEMPLATES.LIST, { branchId: formData.branchId, limit: 200, status: 'active' });
-      if (res && res.success) setTemplates(res.data || []);
+      const res = await apiClient.get(API_ENDPOINTS.SUPER_ADMIN.FEE_TEMPLATES.LIST, { 
+        branchId: formData.branchId, 
+        limit: 200, 
+        status: 'active' 
+      });
+      console.log('Templates response:', res);
+      if (res?.success) {
+        // Handle different response structures
+        const templatesData = res.data?.templates || res.data?.data || res.data || [];
+        console.log('Templates data:', templatesData);
+        setTemplates(Array.isArray(templatesData) ? templatesData : []);
+      } else {
+        console.error('Templates API returned success false:', res);
+        toast.error('Failed to load fee templates');
+      }
     } catch (err) {
       console.error('Error loading templates:', err);
       toast.error('Failed to load templates');
@@ -300,8 +216,15 @@ export default function SuperAdminFeeVouchersPage() {
   const fetchClasses = async () => {
     if (!formData.branchId) return;
     try {
-      const res = await apiClient.get(API_ENDPOINTS.SUPER_ADMIN.CLASSES.LIST, { branchId: formData.branchId, limit: 200 });
-      if (res && res.success) setClasses(res.data || []);
+      const res = await apiClient.get(API_ENDPOINTS.SUPER_ADMIN.CLASSES.LIST, { 
+        branchId: formData.branchId, 
+        limit: 200 
+      });
+      if (res?.success) {
+        // Handle different response structures
+        const classesData = res.data?.classes || res.data || [];
+        setClasses(Array.isArray(classesData) ? classesData : []);
+      }
     } catch (err) {
       console.error('Error loading classes:', err);
     }
@@ -311,7 +234,7 @@ export default function SuperAdminFeeVouchersPage() {
     try {
       const params = { limit: 500, classId: formData.classId, branchId: formData.branchId };
       const res = await apiClient.get(API_ENDPOINTS.SUPER_ADMIN.STUDENTS.LIST, params);
-      if (res && res.success) setStudents(res.data.students || []);
+      if (res?.success) setStudents(res.data.students || []);
     } catch (err) {
       console.error('Error loading students:', err);
       toast.error('Failed to load students');
@@ -331,6 +254,112 @@ export default function SuperAdminFeeVouchersPage() {
     }
   };
 
+  // Client-side filtering and categorization
+  const filteredAndCategorizedVouchers = useMemo(() => {
+    let filtered = allVouchers;
+
+    // Apply search filter
+    if (search.trim()) {
+      const searchLower = search.toLowerCase();
+      filtered = filtered.filter((voucher) => {
+        const voucherNumber = voucher.voucherNumber?.toString().toLowerCase() || '';
+        const studentName = formatStudent(voucher.studentId).name.toLowerCase();
+        const registrationNumber = voucher.studentId?.studentProfile?.registrationNumber?.toString().toLowerCase() || '';
+        const rollNumber = voucher.studentId?.studentProfile?.rollNumber?.toString().toLowerCase() || '';
+        return voucherNumber.includes(searchLower) ||
+               studentName.includes(searchLower) ||
+               registrationNumber.includes(searchLower) ||
+               rollNumber.includes(searchLower);
+      });
+    }
+
+    // Apply month filter
+    if (monthFilter) {
+      filtered = filtered.filter(v => v.month.toString() === monthFilter);
+    }
+
+    // Apply year filter
+    if (yearFilter) {
+      filtered = filtered.filter(v => v.year.toString() === yearFilter);
+    }
+
+    // Apply branch filter
+    if (branchFilter) {
+      filtered = filtered.filter(v => v.branchId?._id === branchFilter || v.branchId === branchFilter);
+    }
+
+    // Categorize by status
+    return {
+      all: filtered,
+      pending: filtered.filter(v => v.status === 'pending'),
+      partial: filtered.filter(v => v.status === 'partial'),
+      overdue: filtered.filter(v => v.status === 'overdue'),
+      paid: filtered.filter(v => v.status === 'paid'),
+      cancelled: filtered.filter(v => v.status === 'cancelled'),
+    };
+  }, [allVouchers, search, monthFilter, yearFilter, branchFilter]);
+
+  // Statistics
+  const statistics = useMemo(() => ({
+    all: {
+      count: filteredAndCategorizedVouchers.all.length,
+      totalAmount: filteredAndCategorizedVouchers.all.reduce((sum, v) => sum + (v.totalAmount || 0), 0)
+    },
+    pending: {
+      count: filteredAndCategorizedVouchers.pending.length,
+      totalAmount: filteredAndCategorizedVouchers.pending.reduce((sum, v) => sum + (v.totalAmount || 0), 0)
+    },
+    partial: {
+      count: filteredAndCategorizedVouchers.partial.length,
+      totalAmount: filteredAndCategorizedVouchers.partial.reduce((sum, v) => sum + (v.remainingAmount || v.totalAmount || 0), 0)
+    },
+    overdue: {
+      count: filteredAndCategorizedVouchers.overdue.length,
+      totalAmount: filteredAndCategorizedVouchers.overdue.reduce((sum, v) => sum + (v.remainingAmount || v.totalAmount || 0), 0)
+    },
+    paid: {
+      count: filteredAndCategorizedVouchers.paid.length,
+      totalAmount: filteredAndCategorizedVouchers.paid.reduce((sum, v) => sum + (v.totalAmount || 0), 0)
+    },
+    cancelled: {
+      count: filteredAndCategorizedVouchers.cancelled.length,
+      totalAmount: filteredAndCategorizedVouchers.cancelled.reduce((sum, v) => sum + (v.totalAmount || 0), 0)
+    },
+  }), [filteredAndCategorizedVouchers]);
+
+  // Get paginated vouchers for current tab
+  const getPaginatedVouchers = (tabKey) => {
+    const vouchers = filteredAndCategorizedVouchers[tabKey] || [];
+    const currentPage = pagination[tabKey]?.page || 1;
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    
+    return {
+      data: vouchers.slice(startIndex, endIndex),
+      total: vouchers.length,
+      totalPages: Math.ceil(vouchers.length / ITEMS_PER_PAGE),
+      currentPage,
+      startIndex: startIndex + 1,
+      endIndex: Math.min(endIndex, vouchers.length),
+    };
+  };
+
+  const handlePageChange = (tabKey, newPage) => {
+    setPagination(prev => ({
+      ...prev,
+      [tabKey]: { page: newPage }
+    }));
+  };
+
+  const handleTabChange = (newTab) => {
+    setActiveTab(newTab);
+    // Reset to page 1 when changing tabs
+    setPagination(prev => ({
+      ...prev,
+      [newTab]: { page: prev[newTab]?.page || 1 }
+    }));
+  };
+
   const handleGenerateVouchers = async (e) => {
     e.preventDefault();
     setSubmitting(true);
@@ -340,8 +369,6 @@ export default function SuperAdminFeeVouchersPage() {
       if (!formData.templateId) return toast.error('Please select a fee template');
       if (!formData.dueDate) return toast.error('Please select a due date');
 
-      // Student selection is now optional - backend will auto-select based on template
-      // If studentIds provided, use them; otherwise backend uses template applicableTo
       const payload = {
         branchId: formData.branchId,
         templateId: formData.templateId,
@@ -351,26 +378,21 @@ export default function SuperAdminFeeVouchersPage() {
         remarks: formData.remarks,
       };
 
-      // Only include studentIds if manually selected (backward compatibility)
       if (formData.studentIds.length > 0 || formData.selectAllStudents) {
         const studentIds = formData.selectAllStudents ? students.map(s => s._id) : formData.studentIds;
         payload.studentIds = studentIds;
       }
 
       const res = await apiClient.post(API_ENDPOINTS.SUPER_ADMIN.FEE_VOUCHERS.CREATE, payload);
-      if (res && res.success) {
+      if (res?.success) {
         toast.success(res.message || 'Fee vouchers generated successfully!');
-        if (res.data?.errors && res.data.errors.length > 0) {
-          console.warn('Some vouchers failed:', res.data.errors);
-          toast.warning(`${res.data.errors.length} vouchers failed - check console for details`);
-        }
         setIsGenerateModalOpen(false);
         resetForm();
-        fetchVouchers();
+        fetchAllVouchers(); // Refresh data
       }
     } catch (err) {
       console.error('Error generating vouchers:', err);
-      toast.error(err?.message || 'Failed to generate vouchers');
+      toast.error(err.message || 'Failed to generate vouchers');
     } finally {
       setSubmitting(false);
     }
@@ -378,160 +400,77 @@ export default function SuperAdminFeeVouchersPage() {
 
   const handleCancelVoucher = async (id) => {
     if (!confirm('Are you sure you want to cancel this voucher?')) return;
+    
     try {
-      const res = await apiClient.delete(API_ENDPOINTS.SUPER_ADMIN.FEE_VOUCHERS.DELETE.replace(':id', id));
-      if (res && res.success) {
-        toast.success('Voucher cancelled successfully!');
-        fetchVouchers();
+      const res = await apiClient.put(API_ENDPOINTS.SUPER_ADMIN.FEE_VOUCHERS.CANCEL.replace(':id', id));
+      if (res?.success) {
+        toast.success('Voucher cancelled successfully');
+        fetchAllVouchers(); // Refresh data
       }
     } catch (err) {
-      console.error('Error cancelling voucher:', err);
-      toast.error(err?.message || 'Failed to cancel voucher');
+      toast.error(err.message || 'Failed to cancel voucher');
     }
   };
 
-  const handleView = (payment) => {
-    console.log('View button clicked for payment:', payment);
-    setSelectedPayment(payment);
-    setActionType('view');
-    setShowPaymentModal(true);
+  const handleViewVoucher = (id) => {
+    setIsViewModalOpen(true);
+    fetchVoucherDetail(id);
   };
 
-  const handleApprove = (payment) => {
-    console.log('Approve button clicked for payment:', payment);
-    setSelectedPayment(payment);
-    setActionType('approve');
-    setRejectionReason('');
-    setShowPaymentModal(true);
-  };
-
-  const handleReject = (payment) => {
-    console.log('Reject button clicked for payment:', payment);
-    setSelectedPayment(payment);
-    setActionType('reject');
-    setRejectionReason('');
-    setShowPaymentModal(true);
-  };
-
-  const handleConfirmAction = async () => {
-    if (!selectedPayment) return;
-
-    // Validate rejection reason for reject action
-    if (actionType === 'reject') {
-      const trimmedReason = rejectionReason.trim();
-      if (!trimmedReason) {
-        setError('Rejection reason is required');
-        return;
-      }
-    }
-
+  const handleDownloadVoucher = async (voucher) => {
     try {
-      setActionLoading(true);
-      setError(null);
-
-      let endpoint;
-      let payload;
-
-      if (actionType === 'approve') {
-        endpoint = '/api/super-admin/pending-fees/approve';
-        payload = {
-          paymentId: `${selectedPayment.voucherId}-${selectedPayment.paymentIndex}`,
-          remarks: 'Payment approved by super admin',
-        };
-      } else if (actionType === 'reject') {
-        endpoint = '/api/super-admin/pending-fees/reject';
-        payload = {
-          paymentId: `${selectedPayment.voucherId}-${selectedPayment.paymentIndex}`,
-          remarks: rejectionReason.trim(),
-        };
-      }
-
-      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
-      if (!token) {
-        setError('Authentication token not found. Please login again.');
-        return;
-      }
-
-      const fetchResponse = await fetch(`${window.location.origin}${endpoint}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
-
-      const response = await fetchResponse.json();
-
-      if (response.success) {
-        setSuccessMessage(actionType === 'approve' ? 'Payment approved successfully' : 'Payment rejected successfully');
-        setRefreshKey(prev => prev + 1);
-        setShowPaymentModal(false);
-        setSelectedPayment(null);
-        setRejectionReason('');
-        setTimeout(() => setSuccessMessage(''), 3000);
-      } else {
-        setError(response.message || `Failed to ${actionType} payment`);
-      }
+      const pdfBuffer = await generateFeeVoucherPDF(voucher);
+      const blob = new Blob([pdfBuffer], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `FeeVoucher_${voucher.voucherNumber || 'download'}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
     } catch (err) {
-      console.error('Network/Parse Error:', err);
-      setError('Network error. Please check your connection and try again.');
-    } finally {
-      setActionLoading(false);
+      console.error('PDF generation error:', err);
+      toast.error('Failed to generate PDF');
     }
-  };
-
-  const handleManualPayment = (id) => {
-    setSelectedVoucherId(id);
-    setPaymentAmount('');
-    setIsManualPaymentModalOpen(true);
   };
 
   const handleOpenManualPayment = (voucher) => {
     setSelectedVoucherForPayment(voucher);
-    setPaymentAmount(voucher.totalAmount.toString());
+    setPaymentAmount(voucher.remainingAmount?.toString() || voucher.totalAmount?.toString() || '');
+    setPaymentRemarks('');
     setIsManualPaymentModalOpen(true);
   };
 
-  const confirmManualPayment = async () => {
-    if (!selectedVoucherId || !paymentAmount) {
-      toast.error('Please enter the payment amount');
+  const handleManualPayment = async () => {
+    if (!selectedVoucherForPayment || !paymentAmount) {
+      toast.error('Please enter payment amount');
       return;
     }
 
-    const amount = parseFloat(paymentAmount);
-    if (amount <= 0) {
-      toast.error('Payment amount must be greater than 0');
-      return;
-    }
-
-    setSubmitting(true);
+    setProcessingPayment(true);
     try {
-      // Use the branch admin approve payment endpoint since super admin has cross-branch access
-      const res = await apiClient.post(API_ENDPOINTS.BRANCH_ADMIN.FEE_VOUCHERS.APPROVE_PAYMENT.replace(':voucherId', selectedVoucherId), {
-        voucherId: selectedVoucherId,
-        paymentIndex: 0,
-        amount: amount,
-        paymentMethod: 'cash',
-        remarks: `Manual cash payment of PKR ${amount} approved by Super Admin`,
-        action: 'manual_approve',
-        manualPayment: true
-      });
+      const res = await apiClient.post(
+        API_ENDPOINTS.SUPER_ADMIN.FEE_VOUCHERS.MANUAL_PAYMENT.replace(':id', selectedVoucherForPayment._id),
+        {
+          amount: parseFloat(paymentAmount),
+          remarks: paymentRemarks,
+          paymentMethod: 'cash',
+        }
+      );
 
-      if (res && res.success) {
-        toast.success('Manual cash payment approved successfully!');
+      if (res?.success) {
+        toast.success('Payment recorded successfully');
         setIsManualPaymentModalOpen(false);
-        setSelectedVoucherId(null);
+        setSelectedVoucherForPayment(null);
         setPaymentAmount('');
-        fetchVouchers();
-      } else {
-        toast.error(res?.message || 'Failed to approve manual payment');
+        setPaymentRemarks('');
+        fetchAllVouchers(); // Refresh data
       }
     } catch (err) {
-      console.error('Error approving manual payment:', err);
-      toast.error(err?.message || 'Failed to approve manual payment');
+      toast.error(err.message || 'Failed to process payment');
     } finally {
-      setSubmitting(false);
+      setProcessingPayment(false);
     }
   };
 
@@ -547,85 +486,223 @@ export default function SuperAdminFeeVouchersPage() {
       year: new Date().getFullYear().toString(),
       remarks: '',
     });
+    setTemplates([]);
+    setClasses([]);
     setStudents([]);
   };
 
-  const handleOpenGenerateModal = () => {
-    resetForm();
-    setIsGenerateModalOpen(true);
-  };
-
-  const getStatusBadge = (status) => {
-    const statusColors = {
-      pending: 'bg-yellow-100 text-yellow-700',
-      paid: 'bg-green-100 text-green-700',
-      partial: 'bg-blue-100 text-blue-700',
-      overdue: 'bg-red-100 text-red-700',
-      cancelled: 'bg-gray-100 text-gray-700',
-    };
-    return statusColors[status] || 'bg-gray-100 text-gray-700';
-  };
-
-  const handleViewVoucher = (id) => {
-    setViewingVoucher(null);
-    setIsViewModalOpen(true);
-    fetchVoucherDetail(id);
-  };
-
-  const handleDownloadVoucher = async (voucher) => {
-    try {
-      // If we don't have full voucher data, fetch it
-      if (!voucher.studentId?.fullName && !voucher.studentId?.firstName) {
-        const res = await apiClient.get(API_ENDPOINTS.SUPER_ADMIN.FEE_VOUCHERS.GET.replace(':id', voucher._id));
-        if (res?.success) {
-          const pdfBuffer = generateFeeVoucherPDF(res.data);
-          const blob = new Blob([pdfBuffer], { type: 'application/pdf' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `fee-voucher-${res.data.voucherNumber}.pdf`;
-          a.click();
-          URL.revokeObjectURL(url);
-        }
-      } else {
-        const pdfBuffer = generateFeeVoucherPDF(voucher);
-        const blob = new Blob([pdfBuffer], { type: 'application/pdf' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `fee-voucher-${voucher.voucherNumber}.pdf`;
-        a.click();
-        URL.revokeObjectURL(url);
-      }
-    } catch (error) {
-      toast.error('Failed to generate PDF');
+  // Common table component for consistent UI
+  const VoucherTable = ({ vouchers, showExtraColumns = false, tabKey }) => {
+    const paginatedData = getPaginatedVouchers(tabKey);
+    const displayVouchers = tabKey === 'all' ? paginatedData.data : vouchers;
+    
+    if (displayVouchers.length === 0) {
+      return (
+        <div className="text-center py-12 text-muted-foreground">
+          <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
+          <p>No vouchers found</p>
+        </div>
+      );
     }
+
+    return (
+      <>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Voucher #</TableHead>
+                <TableHead>Student</TableHead>
+                <TableHead>Template</TableHead>
+                <TableHead>Branch</TableHead>
+                <TableHead>Month/Year</TableHead>
+                <TableHead>Due Date</TableHead>
+                <TableHead className="text-right">Total Amount</TableHead>
+                {tabKey === 'partial' && <TableHead className="text-right">Paid</TableHead>}
+                {tabKey === 'partial' && <TableHead className="text-right">Remaining</TableHead>}
+                {tabKey === 'overdue' && <TableHead className="text-right">Remaining</TableHead>}
+                <TableHead>Status</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {displayVouchers.map((voucher) => {
+                const { name, registrationNumber, rollNumber, section } = formatStudent(voucher.studentId);
+                const daysOverdue = tabKey === 'overdue' 
+                  ? Math.floor((new Date() - new Date(voucher.dueDate)) / (1000 * 60 * 60 * 24)) 
+                  : 0;
+                
+                return (
+                  <TableRow 
+                    key={voucher._id} 
+                    className={
+                      tabKey === 'overdue' ? 'bg-red-50 dark:bg-red-900/10' :
+                      tabKey === 'partial' ? 'bg-blue-50 dark:bg-blue-900/10' :
+                      tabKey === 'paid' ? 'bg-green-50 dark:bg-green-900/10' : ''
+                    }
+                  >
+                    <TableCell className="font-medium">{voucher.voucherNumber}</TableCell>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{name}</div>
+                        <div className="text-xs text-gray-500">
+                          Reg: {registrationNumber} | Roll: {rollNumber} | Sec: {section}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm">{voucher.templateId?.name || '---'}</div>
+                      <div className="text-xs text-gray-500">{voucher.templateId?.code || '---'}</div>
+                    </TableCell>
+                    <TableCell>{voucher.branchId?.name || '---'}</TableCell>
+                    <TableCell>{MONTHS.find(m => m.value === voucher.month?.toString())?.label} {voucher.year}</TableCell>
+                    <TableCell>
+                      <div className={tabKey === 'overdue' ? 'text-red-600 font-medium' : ''}>
+                        {new Date(voucher.dueDate).toLocaleDateString('en-PK')}
+                      </div>
+                      {tabKey === 'overdue' && (
+                        <div className="text-xs text-orange-600">{daysOverdue} days overdue</div>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right font-semibold">
+                      PKR {(voucher.totalAmount || 0).toLocaleString()}
+                    </TableCell>
+                    {tabKey === 'partial' && (
+                      <TableCell className="text-right font-semibold text-green-600">
+                        PKR {(voucher.paidAmount || 0).toLocaleString()}
+                      </TableCell>
+                    )}
+                    {tabKey === 'partial' && (
+                      <TableCell className="text-right font-semibold text-blue-600">
+                        PKR {(voucher.remainingAmount || voucher.totalAmount || 0).toLocaleString()}
+                      </TableCell>
+                    )}
+                    {tabKey === 'overdue' && (
+                      <TableCell className="text-right font-semibold text-orange-600">
+                        PKR {(voucher.remainingAmount || voucher.totalAmount || 0).toLocaleString()}
+                      </TableCell>
+                    )}
+                    <TableCell>
+                      <span className={`px-2 py-1 rounded-full text-xs ${getStatusBadge(voucher.status)}`}>
+                        {voucher.status.charAt(0).toUpperCase() + voucher.status.slice(1)}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="icon-sm" title="View" onClick={() => handleViewVoucher(voucher._id)}>
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon-sm" title="Download" onClick={() => handleDownloadVoucher(voucher)}>
+                          <Download className="w-4 h-4" />
+                        </Button>
+                        {voucher.status !== 'paid' && voucher.status !== 'cancelled' && (
+                          <>
+                            <Button variant="ghost" size="icon-sm" title="Payment" onClick={() => handleOpenManualPayment(voucher)}>
+                              <CreditCard className="w-4 h-4 text-green-600" />
+                            </Button>
+                            <Button variant="ghost" size="icon-sm" title="Cancel" onClick={() => handleCancelVoucher(voucher._id)}>
+                              <Trash2 className="w-4 h-4 text-red-600" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+        
+        {/* Pagination */}
+        <PaginationControls 
+          tabKey={tabKey} 
+          paginatedData={paginatedData} 
+          onPageChange={handlePageChange} 
+        />
+      </>
+    );
   };
 
-  if (loading && vouchers.length === 0) return <FullPageLoader message="Loading fee vouchers..." />;
+  // Pagination component
+  const PaginationControls = ({ tabKey, paginatedData, onPageChange }) => {
+    const { total, totalPages, currentPage, startIndex, endIndex } = paginatedData;
+    
+    if (total <= ITEMS_PER_PAGE) return null;
+
+    return (
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4 pt-4 border-t">
+        <div className="text-sm text-gray-600 dark:text-gray-400">
+          Showing {startIndex} to {endIndex} of {total} vouchers
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={currentPage === 1}
+            onClick={() => onPageChange(tabKey, currentPage - 1)}
+          >
+            <ChevronLeft className="w-4 h-4" />
+            Previous
+          </Button>
+          <div className="flex items-center gap-1">
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              let pageNum;
+              if (totalPages <= 5) {
+                pageNum = i + 1;
+              } else if (currentPage <= 3) {
+                pageNum = i + 1;
+              } else if (currentPage >= totalPages - 2) {
+                pageNum = totalPages - 4 + i;
+              } else {
+                pageNum = currentPage - 2 + i;
+              }
+              
+              return (
+                <Button
+                  key={pageNum}
+                  variant={currentPage === pageNum ? 'default' : 'outline'}
+                  size="sm"
+                  className="w-8 h-8 p-0"
+                  onClick={() => onPageChange(tabKey, pageNum)}
+                >
+                  {pageNum}
+                </Button>
+              );
+            })}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={currentPage === totalPages}
+            onClick={() => onPageChange(tabKey, currentPage + 1)}
+          >
+            Next
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
+  if (authLoading || loading) {
+    return <FullPageLoader message="Loading fee vouchers..." />;
+  }
 
   return (
-    <div className="p-4 md:p-6 space-y-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
+    <div className="p-4 md:p-6 space-y-6">
       {/* Header */}
-      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-        <div className="w-full lg:w-auto">
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100">
-            Fee Vouchers (Super Admin)
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1 text-sm md:text-base">
-            Generate and manage fee vouchers across all branches
-          </p>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Fee Vouchers</h1>
+          <p className="text-gray-600 dark:text-gray-400">Manage fee Vouchers for All Branches</p>
         </div>
-
-        <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
-          <Button onClick={() => setRefreshKey(prev => prev + 1)} variant="outline" className="w-full sm:w-auto">
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={fetchAllVouchers}>
             <RefreshCw className="w-4 h-4 mr-2" />
             Refresh
           </Button>
-          <Button
-            onClick={handleOpenGenerateModal}
-            className="w-full sm:w-auto"
-          >
+          <Button onClick={() => { resetForm(); setIsGenerateModalOpen(true); }}>
             <Plus className="w-4 h-4 mr-2" />
             Generate Vouchers
           </Button>
@@ -633,770 +710,437 @@ export default function SuperAdminFeeVouchersPage() {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
-        <Card className="p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <p className="text-sm font-medium text-muted-foreground">Pending Vouchers</p>
-              <p className="text-3xl font-bold mt-2 text-yellow-600">{statistics.pending.count}</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                PKR {statistics.pending.totalAmount?.toLocaleString()}
-              </p>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => handleTabChange('all')}>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <FileText className="w-5 h-5 text-gray-600" />
+              <span className="text-sm text-gray-600">All</span>
             </div>
-            <div className="p-3 rounded-full bg-yellow-100 text-yellow-600">
-              <Clock className="w-6 h-6" />
-            </div>
-          </div>
+            <div className="text-2xl font-bold mt-2">{statistics.all.count}</div>
+            <div className="text-xs text-gray-500">PKR {statistics.all.totalAmount.toLocaleString()}</div>
+          </CardContent>
         </Card>
-
-        <Card className="p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <p className="text-sm font-medium text-muted-foreground">Paid Vouchers</p>
-              <p className="text-3xl font-bold mt-2 text-green-600">{statistics.paid.count}</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                PKR {statistics.paid.totalAmount?.toLocaleString()}
-              </p>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => handleTabChange('pending')}>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <Clock className="w-5 h-5 text-yellow-600" />
+              <span className="text-sm text-gray-600">Pending</span>
             </div>
-            <div className="p-3 rounded-full bg-green-100 text-green-600">
-              <CheckCircle className="w-6 h-6" />
-            </div>
-          </div>
+            <div className="text-2xl font-bold mt-2">{statistics.pending.count}</div>
+            <div className="text-xs text-gray-500">PKR {statistics.pending.totalAmount.toLocaleString()}</div>
+          </CardContent>
         </Card>
-
-        <Card className="p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <p className="text-sm font-medium text-muted-foreground">Cancelled Vouchers</p>
-              <p className="text-3xl font-bold mt-2 text-red-600">{statistics.cancelled.count}</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                PKR {statistics.cancelled.totalAmount?.toLocaleString()}
-              </p>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => handleTabChange('partial')}>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <CreditCard className="w-5 h-5 text-blue-600" />
+              <span className="text-sm text-gray-600">Partial</span>
             </div>
-            <div className="p-3 rounded-full bg-red-100 text-red-600">
-              <XCircle className="w-6 h-6" />
+            <div className="text-2xl font-bold mt-2">{statistics.partial.count}</div>
+            <div className="text-xs text-gray-500">PKR {statistics.partial.totalAmount.toLocaleString()}</div>
+          </CardContent>
+        </Card>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => handleTabChange('overdue')}>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-red-600" />
+              <span className="text-sm text-gray-600">Overdue</span>
             </div>
-          </div>
+            <div className="text-2xl font-bold mt-2">{statistics.overdue.count}</div>
+            <div className="text-xs text-gray-500">PKR {statistics.overdue.totalAmount.toLocaleString()}</div>
+          </CardContent>
+        </Card>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => handleTabChange('paid')}>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <CheckCircle className="w-5 h-5 text-green-600" />
+              <span className="text-sm text-gray-600">Paid</span>
+            </div>
+            <div className="text-2xl font-bold mt-2">{statistics.paid.count}</div>
+            <div className="text-xs text-gray-500">PKR {statistics.paid.totalAmount.toLocaleString()}</div>
+          </CardContent>
+        </Card>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => handleTabChange('cancelled')}>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <XCircle className="w-5 h-5 text-gray-600" />
+              <span className="text-sm text-gray-600">Cancelled</span>
+            </div>
+            <div className="text-2xl font-bold mt-2">{statistics.cancelled.count}</div>
+            <div className="text-xs text-gray-500">PKR {statistics.cancelled.totalAmount.toLocaleString()}</div>
+          </CardContent>
         </Card>
       </div>
 
-      {/* Error/Success Messages */}
-      {error && (
-        <Card className="border-red-200 bg-red-50 dark:bg-red-900/20">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
-              <AlertTriangle className="w-5 h-5" />
-              <span>{error}</span>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {successMessage && (
-        <Card className="border-green-200 bg-green-50 dark:bg-green-900/20">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
-              <CheckCircle className="w-5 h-5" />
-              <span>{successMessage}</span>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Tabs */}
-      <Tabs
-        tabs={[
-          {
-            id: 'all',
-            label: `All Vouchers (${vouchers.length})`,
-            icon: <FileText className="w-4 h-4" />
-          },
-          {
-            id: 'pending',
-            label: `Pending (${statistics.pending.count})`,
-            icon: <Clock className="w-4 h-4" />
-          },
-          {
-            id: 'paid',
-            label: `Paid (${statistics.paid.count})`,
-            icon: <CheckCircle className="w-4 h-4" />
-          },
-          {
-            id: 'cancelled',
-            label: `Cancelled (${statistics.cancelled.count})`,
-            icon: <XCircle className="w-4 h-4" />
-          }
-        ]}
-        activeTab={activeTab}
-        onChange={setActiveTab}
-      />
-
-      <TabPanel value="all" activeTab={activeTab}>
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="w-5 h-5 text-blue-600" />
-              All Fee Vouchers ({getFilteredVouchers(vouchers).length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {/* Filters */}
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-              <Input placeholder="Search vouchers..." value={search} onChange={(e) => setSearch(e.target.value)} icon={Search} />
-              <Dropdown placeholder="Filter by status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} options={STATUS_OPTIONS} />
-              <Dropdown placeholder="Filter by month" value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)} options={[{ value: '', label: 'All Months' }, ...MONTHS]} />
-              <Input type="number" placeholder="Year" value={yearFilter} onChange={(e) => setYearFilter(e.target.value)} />
-              <BranchSelect value={formData.branchId} onChange={(e) => setFormData(prev => ({ ...prev, branchId: e.target.value }))} branches={branches} placeholder="All Branches (optional)" />
-            </div>
-
-            {/* Table */}
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Voucher #</TableHead>
-                  <TableHead>Student</TableHead>
-                  <TableHead>Template</TableHead>
-                  <TableHead>Branch</TableHead>
-                  <TableHead>Month/Year</TableHead>
-                  <TableHead>Due Date</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {getFilteredVouchers(vouchers).length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={9} className="text-center text-gray-500">No fee vouchers found</TableCell>
-                  </TableRow>
-                ) : (
-                  getFilteredVouchers(vouchers).map((voucher) => (
-                    <TableRow key={voucher._id}>
-                      <TableCell className="font-medium">{voucher.voucherNumber}</TableCell>
-                      <TableCell>
-                        {(() => {
-                          const { name, registrationNumber, rollNumber, section } = formatStudent(voucher.studentId);
-                          return (
-                            <div>
-                              <div className="font-medium">{name}</div>
-                              <div className="text-xs text-gray-500">
-                                Reg: {registrationNumber} | Roll: {rollNumber} | Sec: {section}
-                              </div>
-                            </div>
-                          );
-                        })()}
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm">{voucher.templateId?.name}</div>
-                        <div className="text-xs text-gray-500">{voucher.templateId?.code}</div>
-                      </TableCell>
-                      <TableCell>{voucher.branchId?.name}</TableCell>
-                      <TableCell>{MONTHS.find(m => m.value === voucher.month.toString())?.label} {voucher.year}</TableCell>
-                      <TableCell>{new Date(voucher.dueDate).toLocaleDateString('en-PK')}</TableCell>
-                      <TableCell className="font-semibold">PKR {voucher.totalAmount.toLocaleString()}</TableCell>
-                      <TableCell><span className={`px-2 py-1 rounded-full text-xs ${getStatusBadge(voucher.status)}`}>{voucher.status.charAt(0).toUpperCase() + voucher.status.slice(1)}</span></TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button variant="ghost" size="icon-sm" title="View Details" onClick={() => handleViewVoucher(voucher._id)}><Eye className="w-4 h-4" /></Button>
-                          <Button variant="ghost" size="icon-sm" title="Download PDF" onClick={() => handleDownloadVoucher(voucher)}><Download className="w-4 h-4" /></Button>
-                          {voucher.status !== 'paid' && voucher.status !== 'cancelled' && (
-                            <>
-                          <Button variant="ghost" size="icon-sm" title="Manual Payment" onClick={() => handleOpenManualPayment(voucher)}><CreditCard className="w-4 h-4 text-green-600" /></Button>
-                              <Button variant="ghost" size="icon-sm" onClick={() => handleCancelVoucher(voucher._id)} title="Cancel Voucher"><Trash2 className="w-4 h-4 text-red-600" /></Button>
-                            </>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      </TabPanel>
-
-      <TabPanel value="pending" activeTab={activeTab}>
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-yellow-600" />
-              Pending Payments ({pendingPayments.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {pendingPayments.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <Clock className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>No pending fee payments for your branch</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-center p-4 font-semibold text-base">Branch</th>
-                      <th className="text-center p-4 font-semibold text-base">Voucher #</th>
-                      <th className="text-center p-4 font-semibold text-base">Student</th>
-                      <th className="text-center p-4 font-semibold text-base">Class</th>
-                      <th className="text-center p-4 font-semibold text-base">Amount</th>
-                      <th className="text-center p-4 font-semibold text-base">Payment Method</th>
-                      <th className="text-center p-4 font-semibold text-base">Submitted Date</th>
-                      <th className="text-center p-4 font-semibold text-base">Transaction ID</th>
-                      <th className="text-center p-4 font-semibold text-base">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pendingPayments.map((payment) => (
-                      <tr key={payment.paymentId} className="border-b hover:bg-muted/50">
-                        <td className="p-4">
-                          <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                            {payment.branchName}
-                          </Badge>
-                        </td>
-                        <td className="p-6 font-semibold text-base">{payment.voucherNumber}</td>
-                        <td className="p-4">
-                          <div className="flex items-center gap-2">
-                            <User className="w-4 h-4 text-muted-foreground" />
-                            {payment.studentName}
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <div className="flex items-center gap-2">
-                            <GraduationCap className="w-4 h-4 text-muted-foreground" />
-                            {payment.className}
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-green-600">
-                              PKR {payment.amount?.toFixed(2)}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <Badge variant="secondary">
-                            <CreditCard className="w-3 h-3 mr-1" />
-                            {payment.paymentMethod?.replace('-', ' ').toUpperCase()}
-                          </Badge>
-                        </td>
-                        <td className="p-4">
-                          <div className="flex items-center gap-2">
-                            <Calendar className="w-4 h-4 text-muted-foreground" />
-                            {new Date(payment.paymentDate).toLocaleDateString()}
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <code className="bg-muted px-2 py-1 rounded text-sm">
-                            {payment.transactionId}
-                          </code>
-                        </td>
-                        <td className="p-4">
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleView(payment)}
-                            >
-                              <Eye className="w-4 h-4 mr-1" />
-                              View
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleApprove(payment)}
-                            >
-                              <Check className="w-4 h-4 mr-1" />
-                              Approve
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => handleReject(payment)}
-                            >
-                              <X className="w-4 h-4 mr-1" />
-                              Reject
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </TabPanel>
-
-      <TabPanel value="paid" activeTab={activeTab}>
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CheckCircle className="w-5 h-5 text-green-600" />
-              Paid Fee Vouchers ({paidVouchers.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {/* Filters */}
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-              <Input placeholder="Search vouchers..." value={search} onChange={(e) => setSearch(e.target.value)} icon={Search} />
-              <Dropdown placeholder="Filter by month" value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)} options={[{ value: '', label: 'All Months' }, ...MONTHS]} />
-              <Input type="number" placeholder="Year" value={yearFilter} onChange={(e) => setYearFilter(e.target.value)} />
-              <BranchSelect value={formData.branchId} onChange={(e) => setFormData(prev => ({ ...prev, branchId: e.target.value }))} branches={branches} placeholder="All Branches (optional)" />
-              <div></div> {/* Empty space for alignment */}
-            </div>
-
-            {/* Table */}
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Voucher #</TableHead>
-                  <TableHead>Student</TableHead>
-                  <TableHead>Template</TableHead>
-                  <TableHead>Branch</TableHead>
-                  <TableHead>Month/Year</TableHead>
-                  <TableHead>Due Date</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paidVouchers.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={9} className="text-center text-gray-500">No paid fee vouchers found</TableCell>
-                  </TableRow>
-                ) : (
-                  paidVouchers.map((voucher) => (
-                    <TableRow key={voucher._id}>
-                      <TableCell className="font-medium">{voucher.voucherNumber}</TableCell>
-                      <TableCell>
-                        {(() => {
-                          const { name, registrationNumber, rollNumber, section } = formatStudent(voucher.studentId);
-                          return (
-                            <div>
-                              <div className="font-medium">{name}</div>
-                              <div className="text-xs text-gray-500">
-                                Reg: {registrationNumber} | Roll: {rollNumber} | Sec: {section}
-                              </div>
-                            </div>
-                          );
-                        })()}
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm">{voucher.templateId?.name}</div>
-                        <div className="text-xs text-gray-500">{voucher.templateId?.code}</div>
-                      </TableCell>
-                      <TableCell>{voucher.branchId?.name}</TableCell>
-                      <TableCell>{MONTHS.find(m => m.value === voucher.month.toString())?.label} {voucher.year}</TableCell>
-                      <TableCell>{new Date(voucher.dueDate).toLocaleDateString('en-PK')}</TableCell>
-                      <TableCell className="font-semibold">PKR {voucher.totalAmount.toLocaleString()}</TableCell>
-                      <TableCell><span className={`px-2 py-1 rounded-full text-xs ${getStatusBadge(voucher.status)}`}>{voucher.status.charAt(0).toUpperCase() + voucher.status.slice(1)}</span></TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button variant="ghost" size="icon-sm" title="View Details" onClick={() => handleViewVoucher(voucher._id)}><Eye className="w-4 h-4" /></Button>
-                          <Button variant="ghost" size="icon-sm" title="Download PDF" onClick={() => handleDownloadVoucher(voucher)}><Download className="w-4 h-4" /></Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      </TabPanel>
-
-      <TabPanel value="cancelled" activeTab={activeTab}>
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <XCircle className="w-5 h-5 text-red-600" />
-              Cancelled Fee Vouchers ({cancelledVouchers.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {/* Filters */}
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-              <Input placeholder="Search vouchers..." value={search} onChange={(e) => setSearch(e.target.value)} icon={Search} />
-              <Dropdown placeholder="Filter by month" value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)} options={[{ value: '', label: 'All Months' }, ...MONTHS]} />
-              <Input type="number" placeholder="Year" value={yearFilter} onChange={(e) => setYearFilter(e.target.value)} />
-              <BranchSelect value={formData.branchId} onChange={(e) => setFormData(prev => ({ ...prev, branchId: e.target.value }))} branches={branches} placeholder="All Branches (optional)" />
-              <div></div> {/* Empty space for alignment */}
-            </div>
-
-            {/* Table */}
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Voucher #</TableHead>
-                  <TableHead>Student</TableHead>
-                  <TableHead>Template</TableHead>
-                  <TableHead>Branch</TableHead>
-                  <TableHead>Month/Year</TableHead>
-                  <TableHead>Due Date</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {cancelledVouchers.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={9} className="text-center text-gray-500">No cancelled fee vouchers found</TableCell>
-                  </TableRow>
-                ) : (
-                  cancelledVouchers.map((voucher) => (
-                    <TableRow key={voucher._id}>
-                      <TableCell className="font-medium">{voucher.voucherNumber}</TableCell>
-                      <TableCell>
-                        {(() => {
-                          const { name, registrationNumber, rollNumber, section } = formatStudent(voucher.studentId);
-                          return (
-                            <div>
-                              <div className="font-medium">{name}</div>
-                              <div className="text-xs text-gray-500">
-                                Reg: {registrationNumber} | Roll: {rollNumber} | Sec: {section}
-                              </div>
-                            </div>
-                          );
-                        })()}
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm">{voucher.templateId?.name}</div>
-                        <div className="text-xs text-gray-500">{voucher.templateId?.code}</div>
-                      </TableCell>
-                      <TableCell>{voucher.branchId?.name}</TableCell>
-                      <TableCell>{MONTHS.find(m => m.value === voucher.month.toString())?.label} {voucher.year}</TableCell>
-                      <TableCell>{new Date(voucher.dueDate).toLocaleDateString('en-PK')}</TableCell>
-                      <TableCell className="font-semibold">PKR {voucher.totalAmount.toLocaleString()}</TableCell>
-                      <TableCell><span className={`px-2 py-1 rounded-full text-xs ${getStatusBadge(voucher.status)}`}>{voucher.status.charAt(0).toUpperCase() + voucher.status.slice(1)}</span></TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button variant="ghost" size="icon-sm" title="View Details" onClick={() => handleViewVoucher(voucher._id)}><Eye className="w-4 h-4" /></Button>
-                          <Button variant="ghost" size="icon-sm" title="Download PDF" onClick={() => handleDownloadVoucher(voucher)}><Download className="w-4 h-4" /></Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      </TabPanel>
-
-      {/* View Voucher Modal */}
-      <Modal
-        open={isViewModalOpen}
-        onClose={() => setIsViewModalOpen(false)}
-        title="Voucher Details"
-        footer={
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => handleDownloadVoucher(viewingVoucher)}>
-              <Download className="w-4 h-4 mr-2" />
-              Download PDF
-            </Button>
-            <Button variant="outline" onClick={() => setIsViewModalOpen(false)}>Close</Button>
-          </div>
-        }
-      >
-        {viewLoading ? (
-          <div className="py-6 text-center text-gray-600">Loading voucher...</div>
-        ) : viewingVoucher ? (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-gray-50 rounded-lg p-3">
-                <p className="text-xs text-gray-500">Voucher Number</p>
-                <p className="font-semibold">{viewingVoucher.voucherNumber}</p>
-              </div>
-              <div className="bg-gray-50 rounded-lg p-3">
-                <p className="text-xs text-gray-500">Status</p>
-                <p className="font-semibold capitalize">{viewingVoucher.status}</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {(() => {
-                const { name, registrationNumber, rollNumber, section } = formatStudent(viewingVoucher.studentId);
-                return (
-                  <React.Fragment>
-                    <div className="bg-white border rounded-lg p-3">
-                      <p className="text-xs text-gray-500">Student</p>
-                      <p className="font-semibold">{name}</p>
-                      <p className="text-sm text-gray-600">
-                        Reg: {registrationNumber} | Roll: {rollNumber} | Sec: {section}
-                      </p>
-                    </div>
-                    <div className="bg-white border rounded-lg p-3">
-                      <p className="text-xs text-gray-500">Class</p>
-                      <p className="font-semibold">{viewingVoucher.classId?.name || '—'}</p>
-                      <p className="text-sm text-gray-600">{viewingVoucher.classId?.code || ''}</p>
-                    </div>
-                  </React.Fragment>
-                );
-              })()}
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-gray-50 rounded-lg p-3">
-                <p className="text-xs text-gray-500">Template</p>
-                <p className="font-semibold">{viewingVoucher.templateId?.name || '—'}</p>
-                <p className="text-sm text-gray-600">{viewingVoucher.templateId?.code || ''}</p>
-              </div>
-              <div className="bg-gray-50 rounded-lg p-3">
-                <p className="text-xs text-gray-500">Due Date</p>
-                <p className="font-semibold">{viewingVoucher.dueDate ? new Date(viewingVoucher.dueDate).toLocaleDateString('en-PK') : '—'}</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-white border rounded-lg p-3">
-                <p className="text-xs text-gray-500">Amount Breakdown</p>
-                <ul className="text-sm text-gray-700 space-y-1">
-                  <li>Base: PKR {viewingVoucher.amount?.toLocaleString?.() || viewingVoucher.amount || 0}</li>
-                  <li>Discount: PKR {viewingVoucher.discountAmount?.toLocaleString?.() || 0}</li>
-                  <li>Late Fee: PKR {viewingVoucher.lateFeeAmount?.toLocaleString?.() || 0}</li>
-                  <li className="font-semibold">Total: PKR {viewingVoucher.totalAmount?.toLocaleString?.() || viewingVoucher.totalAmount || 0}</li>
-                </ul>
-              </div>
-              <div className="bg-white border rounded-lg p-3">
-                <p className="text-xs text-gray-500">Payment Status</p>
-                <ul className="text-sm text-gray-700 space-y-1">
-                  <li>Paid: PKR {viewingVoucher.paidAmount?.toLocaleString?.() || 0}</li>
-                  <li>Remaining: PKR {((viewingVoucher.remainingAmount ?? viewingVoucher.totalAmount) || 0).toLocaleString?.() || 0}</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="py-6 text-center text-gray-600">No voucher selected.</div>
-        )}
-      </Modal>
-
-      {/* Generate Vouchers Modal */}
-      <Modal open={isGenerateModalOpen} onClose={() => setIsGenerateModalOpen(false)} title="Generate Fee Vouchers" footer={
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={() => setIsGenerateModalOpen(false)}>Cancel</Button>
-          <Button onClick={handleGenerateVouchers} disabled={submitting}>{submitting ? <ButtonLoader /> : 'Generate Vouchers'}</Button>
+      <div className="space-y-6">
+        <div className="flex flex-wrap gap-2 mb-4">
+          <button onClick={() => handleTabChange('all')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'all' ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
+            All Vouchers
+          </button>
+          <button onClick={() => handleTabChange('pending')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'pending' ? 'bg-yellow-500 text-white' : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
+            Pending
+          </button>
+          <button onClick={() => handleTabChange('partial')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'partial' ? 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
+            Partial
+          </button>
+          <button onClick={() => handleTabChange('overdue')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'overdue' ? 'bg-red-500 text-white' : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
+            Overdue
+          </button>
+          <button onClick={() => handleTabChange('paid')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'paid' ? 'bg-green-500 text-white' : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
+            Paid
+          </button>
+          <button onClick={() => handleTabChange('cancelled')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'cancelled' ? 'bg-gray-500 text-white' : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
+            Cancelled
+          </button>
         </div>
-      }>
-        <form onSubmit={handleGenerateVouchers} className="space-y-4 max-h-[70vh] overflow-y-auto">
 
-          {/* Auto-Selection Info */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-            <div className="flex gap-2">
-              <svg className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-              </svg>
-              <div className="text-sm text-blue-800">
-                <strong className="font-semibold">Smart Auto-Selection:</strong> Students are automatically selected based on template settings (all/class-specific). Manual selection is optional.
-                <ul className="mt-1 ml-4 list-disc text-xs">
-                  <li>Late fees are auto-calculated for unpaid vouchers</li>
-                  <li>Discounts applied automatically per template</li>
-                  <li>Email notifications sent to students & guardians</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Branch *</label>
-              <BranchSelect value={formData.branchId} onChange={(e) => setFormData(prev => ({ ...prev, branchId: e.target.value, templateId: '', classId: '', studentIds: [], selectAllStudents: false }))} branches={branches} placeholder="Select Branch" />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Fee Template *</label>
-              <Dropdown value={formData.templateId} onChange={(e) => setFormData(prev => ({ ...prev, templateId: e.target.value }))} options={[{ value: '', label: 'Select Template' }, ...templates.map(t => ({ value: t._id, label: `${t.name} - PKR ${t.amount}` }))]} placeholder="Select Template" />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Class (Optional)</label>
-              <Dropdown value={formData.classId} onChange={(e) => setFormData(prev => ({ ...prev, classId: e.target.value, studentIds: [], selectAllStudents: false }))} options={[{ value: '', label: 'Auto-select from template' }, ...classes.map(c => ({ value: c._id, label: `${c.name} (${c.code})` }))]} placeholder="Auto-select from template" />
-              <p className="text-xs text-gray-500 mt-1">Leave empty to auto-select based on template</p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Manual Student Selection (Optional)</label>
-              <div className="mb-2">
-                <label className="flex items-center gap-2">
-                  <input type="checkbox" checked={formData.selectAllStudents} onChange={(e) => setFormData(prev => ({ ...prev, selectAllStudents: e.target.checked, studentIds: e.target.checked ? students.map(s => s._id) : [] }))} className="w-4 h-4 text-blue-600 rounded" />
-                  <span className="text-sm">Select All Students ({students.length})</span>
-                </label>
-              </div>
-
-              {!formData.selectAllStudents && (
-                <div className="relative student-dropdown-container">
-                  <button type="button" onClick={() => setStudentDropdownOpen(!studentDropdownOpen)} className="w-full px-4 py-2 border border-gray-300 rounded-lg text-left bg-white hover:border-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
-                    <span className="text-gray-700">{formData.studentIds.length === 0 ? 'Select students...' : `${formData.studentIds.length} student${formData.studentIds.length > 1 ? 's' : ''} selected`}</span>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                  </button>
-
-                  {studentDropdownOpen && (
-                    <div className="absolute z-50 w-full mt-2 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                      {students.length === 0 ? (
-                        <div className="px-4 py-3 text-sm text-gray-500">No students found</div>
-                      ) : (
-                        students.map((student) => {
-                          const isSelected = formData.studentIds.includes(student._id);
-                          const { name, rollNumber } = formatStudent(student);
-                          return (
-                            <label key={student._id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 cursor-pointer transition-colors">
-                              <input type="checkbox" checked={isSelected} onChange={(e) => {
-                                if (e.target.checked) setFormData(prev => ({ ...prev, studentIds: [...prev.studentIds, student._id] }));
-                                else setFormData(prev => ({ ...prev, studentIds: prev.studentIds.filter(id => id !== student._id) }));
-                              }} className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500" />
-                              <div className="flex-1">
-                                <div className="font-medium text-gray-900">{name}</div>
-                                <div className="text-xs text-gray-500">{rollNumber}</div>
-                              </div>
-                            </label>
-                          );
-                        })
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {formData.studentIds.length > 0 && !formData.selectAllStudents && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {formData.studentIds.slice(0, 5).map((studentId) => {
-                    const student = students.find(s => s._id === studentId);
-                    if (!student) return null;
-                    const { name } = formatStudent(student);
-                    return (
-                      <span key={studentId} className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded-md text-xs font-medium">
-                        {name}
-                        <button type="button" onClick={() => setFormData(prev => ({ ...prev, studentIds: prev.studentIds.filter(id => id !== studentId) }))} className="hover:text-blue-900">×</button>
-                      </span>
-                    );
-                  })}
-                  {formData.studentIds.length > 5 && <span className="text-xs text-gray-500 px-2 py-1">+{formData.studentIds.length - 5} more</span>}
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Month *</label>
-              <Dropdown value={formData.month} onChange={(e) => setFormData(prev => ({ ...prev, month: e.target.value }))} options={MONTHS} placeholder="Select Month" />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Year *</label>
-              <Input
-                type="number"
-                value={formData.year}
-                onChange={(e) => setFormData(prev => ({ ...prev, year: e.target.value }))}
-                placeholder="Year"
-                min="2020"
-                max="2050"
-                required
+        {/* Common Filters */}
+        <Card className="mb-6">
+          <CardContent className="p-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Input 
+                placeholder="Search by voucher #, student name, reg #..." 
+                value={search} 
+                onChange={(e) => setSearch(e.target.value)} 
+                icon={Search} 
+              />
+              <Dropdown 
+                placeholder="All Months" 
+                value={monthFilter} 
+                onChange={(e) => setMonthFilter(e.target.value)} 
+                options={[{ value: '', label: 'All Months' }, ...MONTHS]} 
+              />
+              <Input 
+                type="number" 
+                placeholder="Year" 
+                value={yearFilter} 
+                onChange={(e) => setYearFilter(e.target.value)} 
+              />
+              <BranchSelect 
+                value={branchFilter} 
+                onChange={(e) => setBranchFilter(e.target.value)} 
+                branches={branches} 
+                placeholder="All Branches" 
               />
             </div>
+          </CardContent>
+        </Card>
 
+        {/* Tab Panels */}
+        <TabPanel value="all" activeTab={activeTab}>
+          <Card>
+            <CardHeader>
+              <CardTitle>All Fee Vouchers ({statistics.all.count})</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <VoucherTable 
+                vouchers={filteredAndCategorizedVouchers.all} 
+                tabKey="all" 
+              />
+            </CardContent>
+          </Card>
+        </TabPanel>
+
+        <TabPanel value="pending" activeTab={activeTab}>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="w-5 h-5 text-yellow-600" />
+                Pending Fee Vouchers ({statistics.pending.count})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <VoucherTable 
+                vouchers={filteredAndCategorizedVouchers.pending} 
+                tabKey="pending" 
+              />
+            </CardContent>
+          </Card>
+        </TabPanel>
+
+        <TabPanel value="partial" activeTab={activeTab}>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-blue-600" />
+                Partially Paid Fee Vouchers ({statistics.partial.count})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <VoucherTable 
+                vouchers={filteredAndCategorizedVouchers.partial} 
+                tabKey="partial" 
+              />
+            </CardContent>
+          </Card>
+        </TabPanel>
+
+        <TabPanel value="overdue" activeTab={activeTab}>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-red-600" />
+                Overdue Fee Vouchers ({statistics.overdue.count})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <VoucherTable 
+                vouchers={filteredAndCategorizedVouchers.overdue} 
+                tabKey="overdue" 
+              />
+            </CardContent>
+          </Card>
+        </TabPanel>
+
+        <TabPanel value="paid" activeTab={activeTab}>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-green-600" />
+                Paid Fee Vouchers ({statistics.paid.count})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <VoucherTable 
+                vouchers={filteredAndCategorizedVouchers.paid} 
+                tabKey="paid" 
+              />
+            </CardContent>
+          </Card>
+        </TabPanel>
+
+        <TabPanel value="cancelled" activeTab={activeTab}>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <XCircle className="w-5 h-5 text-gray-600" />
+                Cancelled Fee Vouchers ({statistics.cancelled.count})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <VoucherTable 
+                vouchers={filteredAndCategorizedVouchers.cancelled} 
+                tabKey="cancelled" 
+              />
+            </CardContent>
+          </Card>
+        </TabPanel>
+      </div>
+
+      {/* Generate Voucher Modal */}
+      <Modal open={isGenerateModalOpen} onClose={() => setIsGenerateModalOpen(false)} title="Generate Fee Vouchers" size="lg">
+        <form onSubmit={handleGenerateVouchers} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Due Date *</label>
+              <Label>Branch *</Label>
+              <BranchSelect
+                value={formData.branchId}
+                onChange={(e) => setFormData(prev => ({ ...prev, branchId: e.target.value }))}
+                branches={branches}
+                placeholder="Select Branch"
+              />
+            </div>
+            <div>
+              <Label>Fee Template *</Label>
+              <Dropdown
+                value={formData.templateId}
+                onChange={(e) => setFormData(prev => ({ ...prev, templateId: e.target.value }))}
+                options={templates.map(t => ({ value: t._id, label: t.name }))}
+                placeholder="Select Template"
+                disabled={!formData.branchId}
+              />
+            </div>
+            <div>
+              <Label>Class (Optional)</Label>
+              <Dropdown
+                value={formData.classId}
+                onChange={(e) => setFormData(prev => ({ ...prev, classId: e.target.value }))}
+                options={[{ value: '', label: 'All Classes' }, ...classes.map(c => ({ value: c._id, label: c.name }))]}
+                placeholder="Select Class"
+                disabled={!formData.branchId}
+              />
+            </div>
+            <div>
+              <Label>Due Date *</Label>
               <Input
                 type="date"
                 value={formData.dueDate}
                 onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
-                placeholder="Due Date"
-                required
+              />
+            </div>
+            <div>
+              <Label>Month</Label>
+              <Dropdown
+                value={formData.month}
+                onChange={(e) => setFormData(prev => ({ ...prev, month: e.target.value }))}
+                options={MONTHS}
+              />
+            </div>
+            <div>
+              <Label>Year</Label>
+              <Input
+                type="number"
+                value={formData.year}
+                onChange={(e) => setFormData(prev => ({ ...prev, year: e.target.value }))}
               />
             </div>
           </div>
-
           <div>
-            <label className="block text-sm font-medium mb-1">Remarks (Optional)</label>
-            <Input
-              type="text"
+            <Label>Remarks</Label>
+            <Textarea
               value={formData.remarks}
               onChange={(e) => setFormData(prev => ({ ...prev, remarks: e.target.value }))}
-              placeholder="Any additional notes..."
+              placeholder="Optional remarks..."
+              rows={2}
             />
           </div>
-
-          {formData.templateId && formData.studentIds.length > 0 && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h4 className="font-medium text-blue-900 mb-2">Generation Summary:</h4>
-              <ul className="text-sm text-blue-800 space-y-1">
-                <li>• Template: {templates.find(t => t._id === formData.templateId)?.name}</li>
-                <li>• Branch: {branches.find(b => b._id === formData.branchId)?.name}</li>
-                <li>• Students: {formData.studentIds.length} selected</li>
-                <li>• Period: {MONTHS.find(m => m.value === formData.month)?.label} {formData.year}</li>
-                <li>• Total Vouchers: {formData.studentIds.length}</li>
-              </ul>
-            </div>
-          )}
+          <div className="flex justify-end gap-2 pt-4">
+            <Button type="button" variant="outline" onClick={() => setIsGenerateModalOpen(false)}>Cancel</Button>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? <ButtonLoader text="Generating..." /> : 'Generate Vouchers'}
+            </Button>
+          </div>
         </form>
       </Modal>
 
-      {/* Manual Payment Modal */}
-      <Modal
-        open={isManualPaymentModalOpen}
-        onClose={() => setIsManualPaymentModalOpen(false)}
-        title="Confirm Manual Cash Payment"
-        footer={
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setIsManualPaymentModalOpen(false)}>Cancel</Button>
-            <Button onClick={confirmManualPayment} disabled={submitting}>
-              {submitting ? <ButtonLoader /> : 'Confirm Payment'}
-            </Button>
+      {/* View Voucher Modal */}
+      <Modal open={isViewModalOpen} onClose={() => setIsViewModalOpen(false)} title="Voucher Details" size="lg">
+        {viewLoading ? (
+          <div className="flex justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div>
-        }
-      >
-        <div className="space-y-4">
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <div className="flex gap-3">
-              <DollarSign className="w-6 h-6 text-yellow-600 mt-0.5" />
+        ) : viewingVoucher ? (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <h3 className="font-semibold text-yellow-900">Manual Cash Payment</h3>
-                <p className="text-sm text-yellow-800 mt-1">
-                  You are about to mark this fee voucher as paid manually using cash payment.
-                  This action cannot be undone.
-                </p>
+                <Label className="text-gray-500">Voucher Number</Label>
+                <p className="font-semibold">{viewingVoucher.voucherNumber}</p>
               </div>
+              <div>
+                <Label className="text-gray-500">Status</Label>
+                <p><span className={`px-2 py-1 rounded-full text-xs ${getStatusBadge(viewingVoucher.status)}`}>
+                  {viewingVoucher.status?.toUpperCase()}
+                </span></p>
+              </div>
+              <div>
+                <Label className="text-gray-500">Student</Label>
+                <p className="font-semibold">{formatStudent(viewingVoucher.studentId).name}</p>
+              </div>
+              <div>
+                <Label className="text-gray-500">Branch</Label>
+                <p>{viewingVoucher.branchId?.name}</p>
+              </div>
+              <div>
+                <Label className="text-gray-500">Total Amount</Label>
+                <p className="font-semibold">PKR {viewingVoucher.totalAmount?.toLocaleString()}</p>
+              </div>
+              <div>
+                <Label className="text-gray-500">Due Date</Label>
+                <p>{new Date(viewingVoucher.dueDate).toLocaleDateString('en-PK')}</p>
+              </div>
+              {viewingVoucher.status === 'partial' && (
+                <>
+                  <div>
+                    <Label className="text-gray-500">Paid Amount</Label>
+                    <p className="font-semibold text-green-600">PKR {viewingVoucher.paidAmount?.toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <Label className="text-gray-500">Remaining</Label>
+                    <p className="font-semibold text-blue-600">PKR {viewingVoucher.remainingAmount?.toLocaleString()}</p>
+                  </div>
+                </>
+              )}
+            </div>
+            {viewingVoucher.paymentHistory?.length > 0 && (
+              <div>
+                <Label className="text-gray-500 mb-2 block">Payment History</Label>
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead>Method</TableHead>
+                        <TableHead>Remarks</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {viewingVoucher.paymentHistory.map((payment, idx) => (
+                        <TableRow key={idx}>
+                          <TableCell>{new Date(payment.date).toLocaleDateString('en-PK')}</TableCell>
+                          <TableCell>PKR {payment.amount?.toLocaleString()}</TableCell>
+                          <TableCell>{payment.method}</TableCell>
+                          <TableCell>{payment.remarks || '---'}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+            <div className="flex justify-end gap-2 pt-4">
+              <Button variant="outline" onClick={() => setIsViewModalOpen(false)}>Close</Button>
+              <Button onClick={() => handleDownloadVoucher(viewingVoucher)}>
+                <Download className="w-4 h-4 mr-2" />
+                Download PDF
+              </Button>
             </div>
           </div>
+        ) : null}
+      </Modal>
 
-          <div className="bg-white border rounded-lg p-4">
-            <label className="block text-sm font-medium mb-2">Payment Amount (PKR) *</label>
-            <Input
-              type="number"
-              value={paymentAmount}
-              onChange={(e) => setPaymentAmount(e.target.value)}
-              placeholder="Enter payment amount"
-              min="0"
-              step="0.01"
-              required
-            />
-            <p className="text-xs text-gray-500 mt-1">Enter the amount received in cash</p>
+      {/* Manual Payment Modal */}
+      <Modal open={isManualPaymentModalOpen} onClose={() => setIsManualPaymentModalOpen(false)} title="Record Manual Payment" size="md">
+        {selectedVoucherForPayment && (
+          <div className="space-y-4">
+            <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-gray-500">Voucher #:</span>
+                  <span className="font-semibold ml-2">{selectedVoucherForPayment.voucherNumber}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500">Student:</span>
+                  <span className="font-semibold ml-2">{formatStudent(selectedVoucherForPayment.studentId).name}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500">Total Amount:</span>
+                  <span className="font-semibold ml-2">PKR {selectedVoucherForPayment.totalAmount?.toLocaleString()}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500">Remaining:</span>
+                  <span className="font-semibold ml-2 text-blue-600">PKR {(selectedVoucherForPayment.remainingAmount || selectedVoucherForPayment.totalAmount)?.toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+            <div>
+              <Label>Payment Amount (PKR) *</Label>
+              <Input
+                type="number"
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value)}
+                placeholder="Enter amount"
+              />
+            </div>
+            <div>
+              <Label>Remarks</Label>
+              <Textarea
+                value={paymentRemarks}
+                onChange={(e) => setPaymentRemarks(e.target.value)}
+                placeholder="Optional remarks..."
+                rows={2}
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button variant="outline" onClick={() => setIsManualPaymentModalOpen(false)}>Cancel</Button>
+              <Button onClick={handleManualPayment} disabled={processingPayment}>
+                {processingPayment ? <ButtonLoader text="Processing..." /> : 'Record Payment'}
+              </Button>
+            </div>
           </div>
-
-          <div className="bg-gray-50 rounded-lg p-4">
-            <h4 className="font-medium text-gray-900 mb-2">What will happen:</h4>
-            <ul className="text-sm text-gray-700 space-y-1">
-              <li>• Voucher status will change to "Paid"</li>
-              <li>• Payment method will be recorded as "Cash"</li>
-              <li>• Paid amount will be set to the entered amount</li>
-              <li>• Payment will be processed immediately</li>
-            </ul>
-          </div>
-
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <p className="text-sm text-red-800">
-              <strong>Warning:</strong> This action will mark the voucher as paid.
-              Make sure you have received the cash payment before confirming.
-            </p>
-          </div>
-        </div>
+        )}
       </Modal>
     </div>
   );

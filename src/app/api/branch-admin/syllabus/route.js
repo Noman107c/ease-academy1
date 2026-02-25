@@ -3,6 +3,7 @@ import { withAuth } from '@/backend/middleware/auth';
 import connectDB from '@/lib/database';
 import Syllabus from '@/backend/models/Syllabus';
 import Class from '@/backend/models/Class';
+import Subject from '@/backend/models/Subject';
 
 // GET - Get all syllabus for branch admin's branch
 async function getSyllabuses(request, authenticatedUser, userDoc) {

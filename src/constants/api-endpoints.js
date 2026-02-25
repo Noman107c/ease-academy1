@@ -192,6 +192,7 @@ export const API_ENDPOINTS = {
       GET: '/api/super-admin/fee-vouchers/:id',
       UPDATE: '/api/super-admin/fee-vouchers/:id',
       DELETE: '/api/super-admin/fee-vouchers/:id',
+      CANCEL: '/api/super-admin/fee-vouchers/:id/cancel',
       APPROVE_PAYMENT: '/api/super-admin/fee-vouchers/:voucherId/approve-payment',
       MANUAL_PAYMENT: '/api/super-admin/fee-vouchers/:id/manual-payment',
       // REJECT_PAYMENT: '/api/super-admin/fee-vouchers/:voucherId/reject-payment',
@@ -530,6 +531,7 @@ export const API_ENDPOINTS = {
       GET: '/api/branch-admin/fee-vouchers/:id', // GET
       UPDATE: '/api/branch-admin/fee-vouchers/:id', // PUT
       DELETE: '/api/branch-admin/fee-vouchers/:id', // DELETE
+      CANCEL: '/api/branch-admin/fee-vouchers/:id/cancel', // PUT
       APPROVE_PAYMENT: '/api/branch-admin/fee-vouchers/:voucherId/approve-payment', // POST
       MANUAL_PAYMENT: '/api/branch-admin/fee-vouchers/:id/manual-payment', // POST
       // REJECT_PAYMENT: '/api/branch-admin/fee-vouchers/:voucherId/reject-payment', // POST

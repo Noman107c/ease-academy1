@@ -36,7 +36,6 @@ export const GET = withAuth(async (request, authenticatedUser, userDoc) => {
     if (search) {
       query.$or = [
         { title: { $regex: search, $options: 'i' } },
-        { academicYear: { $regex: search, $options: 'i' } },
       ];
     }
     
@@ -59,16 +58,32 @@ export const GET = withAuth(async (request, authenticatedUser, userDoc) => {
         .populate('streamId', 'name code')
         .populate('preparedBy', 'firstName lastName employeeId')
         .populate('approvedBy', 'firstName lastName employeeId')
-        .sort({ academicYear: -1, createdAt: -1 })
+        .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
         .lean(),
       Syllabus.countDocuments(query),
     ]);
+    
+    // Try to populate academicYear for documents that have valid ObjectId
+    const AcademicYear = (await import('@/backend/models/AcademicYear')).default;
+    const syllabusWithYear = await Promise.all(
+      syllabus.map(async (syl) => {
+        if (syl.academicYear && /^[0-9a-fA-F]{24}$/.test(syl.academicYear)) {
+          try {
+            const year = await AcademicYear.findById(syl.academicYear).select('yearName startDate endDate isCurrent').lean();
+            return { ...syl, academicYear: year };
+          } catch {
+            return syl;
+          }
+        }
+        return syl;
+      })
+    );
 
     return NextResponse.json({
       success: true,
-      data: syllabus,
+      data: syllabusWithYear,
       pagination: {
         page,
         limit,

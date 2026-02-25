@@ -7,6 +7,7 @@ import connectDB from '@/lib/database';
 import { sendEmail } from '@/backend/utils/emailService';
 import { getStudentEmailTemplate } from '@/backend/templates/studentEmail';
 import { getParentEmailTemplate } from '@/backend/templates/parentEmail';
+import { ObjectId } from 'mongodb';
 
 // POST /api/branch-admin/fee-vouchers/:id/manual-payment - Record manual payment
 export const POST = withAuth(async (request, user, userDoc, context) => {
@@ -14,7 +15,20 @@ export const POST = withAuth(async (request, user, userDoc, context) => {
     await connectDB();
 
     // In Next.js 16, params is a Promise
-    const { id } = await context.params || {};
+    const params = await context.params || {};
+    const { id } = params;
+    
+    console.log('Manual payment request - Voucher ID:', id);
+    console.log('Manual payment request - User branchId:', user.branchId);
+    
+    // Validate ID format
+    if (!id || !ObjectId.isValid(id)) {
+      console.log('Invalid voucher ID format:', id);
+      return NextResponse.json(
+        { success: false, message: 'Invalid voucher ID format' },
+        { status: 400 }
+      );
+    }
     
     const body = await request.json();
     const { amount, paymentMethod, remarks, paymentDate } = body;
@@ -27,14 +41,33 @@ export const POST = withAuth(async (request, user, userDoc, context) => {
       );
     }
 
-    // Find the voucher
-    const voucher = await FeeVoucher.findById(id)
+    // Find the voucher - include branchId in the query for branch admin
+    const query = { _id: new ObjectId(id) };
+    
+    // If user is branch admin, filter by branch
+    if (user.branchId) {
+      query.branchId = new ObjectId(user.branchId);
+    }
+    
+    const voucher = await FeeVoucher.findOne(query)
       .populate('studentId', 'fullName firstName lastName email studentProfile')
       .populate('templateId', 'name code')
       .populate('classId', 'name code')
       .lean();
       
+    console.log('Voucher found:', voucher ? voucher._id : 'Not found');
+      
     if (!voucher) {
+      // Check if voucher exists but belongs to different branch
+      const voucherExists = await FeeVoucher.findById(id).lean();
+      if (voucherExists) {
+        console.log('Voucher exists but belongs to branch:', voucherExists.branchId);
+        return NextResponse.json(
+          { success: false, message: 'Access denied. This voucher belongs to a different branch.' },
+          { status: 403 }
+        );
+      }
+      
       return NextResponse.json(
         { success: false, message: 'Voucher not found' },
         { status: 404 }

@@ -159,10 +159,10 @@ export function AuthProvider({ children }) {
    */
   const logout = useCallback(async () => {
     try {
-      // Call logout endpoint
+      // Call logout endpoint - this now always succeeds
       await apiClient.post(API_ENDPOINTS.AUTH.LOGOUT);
     } catch (error) {
-      console.error("Logout error:", error);
+      // Silently ignore - we'll clear local data anyway
     } finally {
       // Clear local data
       localStorage.removeItem("accessToken");

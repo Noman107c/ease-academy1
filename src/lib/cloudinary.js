@@ -154,6 +154,24 @@ export async function uploadQR(dataUrl, userId, type) {
 }
 
 /**
+ * Upload syllabus PDF
+ * @param {Buffer|string} file - File buffer or base64 string
+ * @param {string} classId - Class ID for folder organization
+ * @param {string} branchId - Branch ID for folder organization (optional)
+ * @returns {Promise<Object>} Upload result
+ */
+export async function uploadSyllabusPdf(file, classId, branchId = null) {
+  const folder = branchId 
+    ? `ease-academy/syllabus/${branchId}/${classId}`
+    : `ease-academy/syllabus/${classId}`;
+  
+  return uploadToCloudinary(file, {
+    folder,
+    resourceType: 'auto', // Supports PDF and other document types
+  });
+}
+
+/**
  * Get cloudinary URL with transformations
  * @param {string} publicId - Public ID of the file
  * @param {Object} transformations - Transformation options

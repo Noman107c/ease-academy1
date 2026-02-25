@@ -19,6 +19,7 @@ import {
   X,
   FolderOpen,
   Calendar,
+  CalendarDays,
   Wallet,
   BarChart3,
   Briefcase,
@@ -83,6 +84,11 @@ const ROLE_MENUS = {
       category: "Academic",
       isCollapsible: true,
       items: [
+        {
+          name: "Academic Years",
+          path: "/super-admin/academic/academic-years",
+          icon: CalendarDays,
+        },
         {
           name: "Departments",
           path: "/super-admin/academic/departments",
@@ -158,11 +164,6 @@ const ROLE_MENUS = {
           name: "Fee Voucher",
           path: "/super-admin/fee-vouchers",
           icon: Receipt,
-        },
-        {
-          name: "Pending Fees",
-          path: "/super-admin/pending-fees",
-          icon: DollarSign,
         },
       ],
     },
@@ -290,7 +291,6 @@ const ROLE_MENUS = {
       items: [
         { name: "Fee Voucher", path: "/branch-admin/fee-vouchers", icon: Receipt },
         { name: "Fee Templates", path: "/branch-admin/fee-templates", icon: Receipt },
-        { name: "Pending Fees", path: "/branch-admin/pending-fees", icon: DollarSign },
         { name: "Expenses", path: "/branch-admin/expenses", icon: Wallet },
       ],
     },

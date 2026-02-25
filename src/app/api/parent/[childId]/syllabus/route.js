@@ -15,10 +15,10 @@ const handler = withAuth(async (request, user, userDoc, context) => {
 
     const child = await User.findById(childId).lean();
     if (!child || !child.studentProfile?.classId) {
-      return NextResponse.json({ success: true, syllabus: [] });
+      return NextResponse.json({ success: true, data: [] });
     }
 
-    // Fetch syllabus for child's class
+    // Fetch syllabus for child's class`  
     const syllabusList = await Syllabus.find({
       classId: child.studentProfile.classId,
       status: { $in: ['published', 'approved'] },
@@ -47,9 +47,10 @@ const handler = withAuth(async (request, user, userDoc, context) => {
       onlineResources: syl.onlineResources,
       preparedBy: syl.preparedBy?.fullName || syl.preparedBy?.firstName,
       attachments: syl.attachments,
+      pdfFile: syl.pdfFile,
     }));
 
-    return NextResponse.json({ success: true, syllabus: syllabusData });
+    return NextResponse.json({ success: true, data: syllabusData });
   } catch (error) {
     console.error('Error fetching syllabus:', error);
     return NextResponse.json({ success: false, message: 'Failed to fetch syllabus' }, { status: 500 });

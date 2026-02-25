@@ -32,6 +32,7 @@ const getPeriodKey = (date, filter) => {
   }
 };
 
+
 const generateLabels = (filter) => {
   const { periods, labelType } = FILTER_CONFIGS[filter];
   const labels = [];
@@ -106,14 +107,14 @@ const MonthlyFeeCollection = () => {
     return Object.values(dataMap);
   }, [labels, selectedFilter]);
 
-  // API call
+  // API call - uses fee-vouchers endpoint instead of deprecated pending-fees
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
       const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
-      const response = await fetch('/api/branch-admin/pending-fees', {
+      const response = await fetch('/api/branch-admin/fee-vouchers?limit=1000', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -124,7 +125,11 @@ const MonthlyFeeCollection = () => {
       const result = await response.json();
 
       if (result.success) {
-        const processedData = processFeeData(result.approvedPayments || [], result.data || []);
+        const vouchers = result.data?.vouchers || result.vouchers || [];
+        // Separate paid and pending vouchers
+        const paidVouchers = vouchers.filter(v => v.status === 'paid');
+        const pendingVouchers = vouchers.filter(v => v.status === 'pending' || v.status === 'partial');
+        const processedData = processFeeData(paidVouchers, pendingVouchers);
         setData(processedData);
       } else {
         setData(getMockData());

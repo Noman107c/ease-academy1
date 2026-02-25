@@ -5,9 +5,11 @@ import {
   uploadStudentDocument,
   uploadTeacherDocument,
   uploadStaffDocument,
+  uploadSyllabusPdf,
   deleteFromCloudinary,
 } from '@/lib/cloudinary';
 import User from '@/backend/models/User';
+import Syllabus from '@/backend/models/Syllabus';
 import connectDB from '@/lib/database';
 // Ensure Node runtime so Buffer is available for binary handling
 export const runtime = 'nodejs';
@@ -203,6 +205,44 @@ export const POST = withAuth(async (request, authenticatedUser, userDoc) => {
           success: true,
           message: 'Staff document uploaded successfully',
           data: uploadResult,
+        });
+
+      case 'syllabus_pdf':
+        // For syllabus PDF upload
+        const syllabusId = formData.get('syllabusId'); // Optional - for updating existing syllabus
+        const classId = formData.get('classId');
+        const branchId = formData.get('branchId');
+        
+        if (!classId) {
+          return NextResp.json(
+            { success: false, message: 'Class ID is required for syllabus PDF upload' },
+            { status: 400 }
+          );
+        }
+        
+        uploadResult = await uploadSyllabusPdf(base64File, classId, branchId);
+        
+        // If syllabusId provided, update the existing syllabus record
+        if (syllabusId) {
+          const syllabus = await Syllabus.findById(syllabusId);
+          if (syllabus) {
+            syllabus.pdfFile = {
+              name: file.name,
+              url: uploadResult.url,
+              publicId: uploadResult.publicId,
+              uploadedAt: new Date(),
+            };
+            await syllabus.save();
+          }
+        }
+        
+        return NextResp.json({
+          success: true,
+          message: 'Syllabus PDF uploaded successfully',
+          data: {
+            ...uploadResult,
+            name: file.name,
+          },
         });
 
       default:

@@ -46,7 +46,8 @@ const classSchema = new mongoose.Schema(
       required: [true, 'Branch is required'],
     },
     academicYear: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'AcademicYear',
       required: [true, 'Academic year is required'],
     },
     subjects: [{

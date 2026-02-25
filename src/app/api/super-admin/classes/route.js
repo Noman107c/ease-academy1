@@ -55,8 +55,9 @@ async function getClasses(request, authenticatedUser) {
           status: 'active',
         });
 
+        const obj = classDoc.toObject();
         return {
-          ...classDoc.toObject(),
+          ...obj,
           studentCount,
         };
       })

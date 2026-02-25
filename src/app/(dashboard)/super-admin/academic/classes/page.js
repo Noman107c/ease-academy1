@@ -18,6 +18,7 @@ import {
 import Input from '@/components/ui/input';
 import GradeSelect from '@/components/ui/grade-select';
 import Dropdown from '@/components/ui/dropdown';
+import AcademicYearDropdown from '@/components/ui/AcademicYearDropdown';
 import Modal from '@/components/ui/modal';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
@@ -40,7 +41,7 @@ export default function ClassesPage() {
     code: '',
     grade: '',
     branchId: '',
-    academicYear: new Date().getFullYear().toString(),
+    academicYear: '',
     sections: [{ name: 'A', capacity: 40, roomNumber: '' }],
     description: '',
     status: 'active',
@@ -115,7 +116,7 @@ export default function ClassesPage() {
       code: '',
       grade: 1,
       branchId: '',
-      academicYear: new Date().getFullYear().toString(),
+      academicYear: '',
       sections: [{ name: 'A', capacity: 40, roomNumber: '' }],
       description: '',
       status: 'active',
@@ -130,7 +131,7 @@ export default function ClassesPage() {
       code: cls.code,
       grade: cls.grade?._id || cls.grade?.name || '',
       branchId: cls.branchId?._id || '',
-      academicYear: cls.academicYear,
+      academicYear: cls.academicYear?._id || cls.academicYear || '',
       sections: cls.sections.map(s => ({
         name: s.name,
         capacity: s.capacity,
@@ -396,7 +397,7 @@ export default function ClassesPage() {
 
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <GraduationCap className="w-4 h-4" />
-                  <span>Academic Year: {cls.academicYear}</span>
+                  <span>Academic Year: {cls.academicYear?.yearName || cls.academicYear || 'N/A'}</span>
                 </div>
 
                 <div className="pt-3 border-t border-gray-200">
@@ -487,7 +488,14 @@ export default function ClassesPage() {
             </div>
 
             <div>
-              <Input name="academicYear" label="Academic Year" placeholder="2024-2025" value={formData.academicYear} onChange={(e) => setFormData({ ...formData, academicYear: e.target.value })} />
+              <label className="block text-sm font-medium text-gray-700 mb-2">Academic Year</label>
+              <AcademicYearDropdown
+                value={formData.academicYear}
+                onChange={(e) => setFormData({ ...formData, academicYear: e.target.value })}
+                branchId={formData.branchId}
+                required={true}
+                placeholder="Select Academic Year"
+              />
             </div>
           </div>
 

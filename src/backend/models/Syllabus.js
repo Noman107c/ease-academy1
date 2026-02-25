@@ -10,9 +10,9 @@ const syllabusSchema = new mongoose.Schema(
       trim: true,
     },
     academicYear: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'AcademicYear',
       required: true,
-      trim: true,
     },
     
     // Subject and Class References
@@ -192,6 +192,14 @@ const syllabusSchema = new mongoose.Schema(
         type: String,
       },
     ],
+    
+    // PDF File Upload (for syllabus PDF)
+    pdfFile: {
+      name: String,
+      url: String,
+      publicId: String,
+      uploadedAt: Date,
+    },
     
     // Tracking
     createdBy: {

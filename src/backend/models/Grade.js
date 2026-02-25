@@ -6,7 +6,7 @@ const gradeSchema = new mongoose.Schema(
     gradeNumber: { type: Number },
     levelId: { type: mongoose.Schema.Types.ObjectId, ref: 'Level' },
     code: { type: String, trim: true },
-    academicYear: { type: String },
+    academicYear: { type: mongoose.Schema.Types.ObjectId, ref: 'AcademicYear' },
     description: String,
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

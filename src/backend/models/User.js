@@ -162,7 +162,8 @@ const userSchema = new mongoose.Schema(
         type: Date,
       },
       academicYear: {
-        type: String,
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'AcademicYear',
       },
       
       // Previous School Information
