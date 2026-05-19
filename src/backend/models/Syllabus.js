@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import Grade from './Grade';
+import Grade from './Grade.js';
 
 const syllabusSchema = new mongoose.Schema(
   {

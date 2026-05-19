@@ -7,10 +7,10 @@ export async function POST(request) {
     // Authenticate user
     const authResult = await authenticate(request);
     
-    if (!authResult.success) {
+    if (authResult.error) {
       return NextResponse.json(
         { success: false, message: authResult.message },
-        { status: 401 }
+        { status: authResult.status || 401 }
       );
     }
     
@@ -26,7 +26,7 @@ export async function POST(request) {
     }
     
     const result = await changePassword(
-      authResult.user._id,
+      authResult.user.userId,
       currentPassword,
       newPassword
     );

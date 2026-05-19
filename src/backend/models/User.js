@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 
 // Import Branch model to ensure it's registered
-import Branch from './Branch';
+import Branch from './Branch.js';
 
 const userSchema = new mongoose.Schema(
   {

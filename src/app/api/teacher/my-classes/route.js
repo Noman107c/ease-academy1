@@ -1,15 +1,25 @@
 import { NextResponse } from 'next/server';
 import { withAuth, requireRole } from '@/backend/middleware/auth'; // Middleware Import
 import Timetable from '@/backend/models/Timetable';
-import connectDB from '@/lib/database';
+import connectDB, { isMockMode } from '@/lib/database';
 import User from '@/backend/models/User';
 import Class from '@/backend/models/Class';
 import Branch from '@/backend/models/Branch';
 import Subject from '@/backend/models/Subject';
+import { getMockTeacherClasses } from '@/lib/mock-data';
 
 // Main Handler Function
 const getMyClasses = async (req, user, userDoc) => {
   try {
+    if (isMockMode()) {
+      const data = getMockTeacherClasses();
+      return NextResponse.json({
+        success: true,
+        count: data.length,
+        data,
+      });
+    }
+
     await connectDB();
     
     // console.log("---------------- API HIT (SECURE) ----------------");

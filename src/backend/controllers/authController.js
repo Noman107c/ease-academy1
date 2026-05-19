@@ -1,14 +1,23 @@
 import bcrypt from 'bcryptjs';
 import User from '@/backend/models/User';
-import connectDB from '@/lib/database';
+import connectDB, { isMockMode } from '@/lib/database';
 import { generateAccessToken, generateRefreshToken, verifyToken } from '@/backend/middleware/auth';
 import { setCache, getCache, deleteCache } from '@/lib/redis';
 import Branch from '@/backend/models/Branch';
+import { getMockUserByEmail, getMockUserById, toSafeMockUser } from '@/lib/mock-data';
 /**
  * Register new user
  */
 export async function registerUser(userData) {
   try {
+    if (isMockMode()) {
+      return {
+        success: true,
+        data: null,
+        message: 'Mock mode: registration is disabled in demo mode',
+      };
+    }
+
     await connectDB();
     
     const { fullName, email, phone, password, role, branchId, permissions } = userData;
@@ -51,6 +60,32 @@ export async function registerUser(userData) {
  */
 export async function loginUser(email, password) {
   try {
+    if (isMockMode()) {
+      const mockUser = getMockUserByEmail(email);
+
+      if (!mockUser || mockUser.password !== password) {
+        throw new Error('Invalid email or password');
+      }
+
+      const safeUser = toSafeMockUser(mockUser);
+      const tokenPayload = {
+        userId: safeUser._id,
+        email: safeUser.email,
+        role: safeUser.role,
+        branchId: safeUser.branchId,
+      };
+
+      return {
+        success: true,
+        data: {
+          user: safeUser,
+          accessToken: generateAccessToken(tokenPayload),
+          refreshToken: generateRefreshToken(tokenPayload),
+        },
+        message: 'Login successful (mock mode)',
+      };
+    }
+
     await connectDB();
     
     // Find user with password field and populate branch
@@ -119,6 +154,13 @@ export async function loginUser(email, password) {
  */
 export async function logoutUser(userId) {
   try {
+    if (isMockMode()) {
+      return {
+        success: true,
+        message: 'Logout successful',
+      };
+    }
+
     await connectDB();
     
     const user = await User.findById(userId);
@@ -148,6 +190,28 @@ export async function logoutUser(userId) {
  */
 export async function refreshAccessToken(refreshToken) {
   try {
+    if (isMockMode()) {
+      const decoded = verifyToken(refreshToken);
+      const user = getMockUserById(decoded.userId);
+
+      if (!user) {
+        throw new Error('Invalid refresh token');
+      }
+
+      return {
+        success: true,
+        data: {
+          accessToken: generateAccessToken({
+            userId: user._id,
+            email: user.email,
+            role: user.role,
+            branchId: user.branchId,
+          }),
+        },
+        message: 'Token refreshed successfully',
+      };
+    }
+
     await connectDB();
     
     // Verify refresh token
@@ -191,6 +255,17 @@ export async function refreshAccessToken(refreshToken) {
  */
 export async function changePassword(userId, currentPassword, newPassword) {
   try {
+    if (isMockMode()) {
+      if (newPassword.length < 6) {
+        throw new Error('New password must be at least 6 characters long');
+      }
+
+      return {
+        success: true,
+        message: 'Password changed successfully (mock mode)',
+      };
+    }
+
     await connectDB();
     
     // Find user with password
@@ -233,6 +308,13 @@ export async function changePassword(userId, currentPassword, newPassword) {
  */
 export async function requestPasswordReset(email) {
   try {
+    if (isMockMode()) {
+      return {
+        success: true,
+        message: 'If the email exists, a reset link has been sent',
+      };
+    }
+
     await connectDB();
     
     const user = await User.findOne({ email });
@@ -277,6 +359,17 @@ export async function requestPasswordReset(email) {
  */
 export async function resetPassword(resetToken, newPassword) {
   try {
+    if (isMockMode()) {
+      if (newPassword.length < 6) {
+        throw new Error('Password must be at least 6 characters long');
+      }
+
+      return {
+        success: true,
+        message: 'Password reset successfully (mock mode)',
+      };
+    }
+
     await connectDB();
     
     // Hash token to compare
@@ -321,6 +414,19 @@ export async function resetPassword(resetToken, newPassword) {
  */
 export async function getCurrentUser(userId) {
   try {
+    if (isMockMode()) {
+      const mockUser = getMockUserById(userId);
+
+      if (!mockUser) {
+        throw new Error('User not found');
+      }
+
+      return {
+        success: true,
+        data: toSafeMockUser(mockUser),
+      };
+    }
+
     await connectDB();
     
     // Try to get from cache first
@@ -356,6 +462,26 @@ export async function getCurrentUser(userId) {
  */
 export async function updateUserProfile(userId, updates) {
   try {
+    if (isMockMode()) {
+      const mockUser = getMockUserById(userId);
+
+      if (!mockUser) {
+        throw new Error('User not found');
+      }
+
+      const safeUser = toSafeMockUser(mockUser);
+      const merged = {
+        ...safeUser,
+        fullName: updates.fullName || safeUser.fullName,
+      };
+
+      return {
+        success: true,
+        data: merged,
+        message: 'Profile updated successfully (mock mode)',
+      };
+    }
+
     await connectDB();
     
     const allowedUpdates = ['fullName', 'phone', 'avatar'];

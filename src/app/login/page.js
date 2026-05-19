@@ -48,9 +48,11 @@ export default function LoginPage() {
 
   const testAccounts = [
     { email: 'superadmin@easeacademy.com', password: 'SuperAdmin@123', role: 'Super Admin' },
-    { email: 'hafizshoaib@gmail.com', password: '123456', role: 'Branch Admin' },
-    { email: 'shoaibrazamemon170@gmail.com', password: 'Teacher@123', role: 'Teacher' },
-    // { email: 'student@easeacademy.com', password: 'student123', role: 'Student' },
+    { email: 'branchadmin@easeacademy.com', password: 'BranchAdmin@123', role: 'Branch Admin' },
+    { email: 'teacher1@easeacademy.com', password: 'Teacher@123', role: 'Teacher' },
+    { email: 'student1@easeacademy.com', password: 'Student@123', role: 'Student' },
+    { email: 'parent1@easeacademy.com', password: 'Parent@123', role: 'Parent' },
+    { email: 'staff1@easeacademy.com', password: 'Staff@123', role: 'Staff' },
   ];
 
   const fillTestCredentials = (testEmail, testPassword) => {
@@ -173,20 +175,18 @@ export default function LoginPage() {
                 <div className="h-px bg-gray-200 mt-3" />
               </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2 text-sm">
               {testAccounts.map((account, index) => (
                 <Button
                   key={index}
                   type="button"
                   onClick={() => fillTestCredentials(account.email, account.password)}
                   disabled={loading}
-                  className="w-full justify-start space-y-0.5"
+                  className="w-full justify-start"
                 >
-                  <div>
-                    {account.role}
-                  </div>
-                  <div>
-                    {account.email}
+                  <div className="text-left leading-tight">
+                    <div className="font-sm">{account.role} ,{account.email}</div>
+                    <div className="text-xs opacity-80">{account.password}</div>
                   </div>
                 </Button>
               ))}

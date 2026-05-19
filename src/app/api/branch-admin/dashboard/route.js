@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { withAuth } from '@/backend/middleware/auth';
-import connectDB from '@/lib/database';
+import connectDB, { isMockMode } from '@/lib/database';
 import User from '@/backend/models/User';
 import Class from '@/backend/models/Class';
 import Subject from '@/backend/models/Subject';
 import Event from '@/backend/models/Event';
+import { getMockBranchAdminDashboard } from '@/lib/mock-data';
 
 async function getDashboard(request, authenticatedUser, userDoc) {
   try {
@@ -22,6 +23,14 @@ async function getDashboard(request, authenticatedUser, userDoc) {
         { success: false, message: 'No branch assigned to this admin.' },
         { status: 400 }
       );
+    }
+
+    if (isMockMode()) {
+      return NextResponse.json({
+        success: true,
+        data: getMockBranchAdminDashboard(),
+        message: 'Mock dashboard data retrieved successfully',
+      });
     }
 
     await connectDB();

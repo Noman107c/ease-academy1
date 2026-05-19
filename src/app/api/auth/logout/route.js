@@ -1,19 +1,23 @@
 import { NextResponse } from 'next/server';
-import { logoutUser } from '@/backend/controllers/authController';
-import { authenticate } from '@/backend/middleware/auth';
+import { isMockModeEnabled } from '@/lib/mock-data';
 
 export async function POST(request) {
   try {
-    // Try to authenticate user, but don't fail logout if token is expired
-    const authResult = await authenticate(request);
-    
-    // If user is authenticated, perform server-side logout
-    if (authResult.success && authResult.user?._id) {
+    // If not mock-mode, attempt server-side logout using controllers
+    if (!isMockModeEnabled()) {
       try {
-        await logoutUser(authResult.user._id);
-      } catch (logoutError) {
-        // Ignore logout errors - still clear cookies
-        console.error('Server logout error (ignored):', logoutError);
+        const { authenticate } = await import('@/backend/middleware/auth');
+        const { logoutUser } = await import('@/backend/controllers/authController');
+        const authResult = await authenticate(request);
+        if (!authResult.error && authResult.user?.userId) {
+          try {
+            await logoutUser(authResult.user.userId);
+          } catch (logoutError) {
+            console.error('Server logout error (ignored):', logoutError);
+          }
+        }
+      } catch (e) {
+        // ignore
       }
     }
     

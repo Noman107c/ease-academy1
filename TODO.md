@@ -1,23 +1,8 @@
-# Academic Year CRUD Implementation
+# TODO
 
-## Completed Tasks:
+- [ ] Fix Login page UI: clean up "Test Accounts" section in `src/app/login/page.js`
+  - [ ] Improve alignment/spacing and DOM structure for the demo account buttons
+  - [ ] Reduce prominence of passwords (mask by default; optional toggle)
+  - [ ] Ensure button click still fills `email` and `password` using existing logic
+- [ ] Sanity check build/lint (run tests/dev command if available)
 
-- [x] Plan the Academic Year CRUD implementation
-- [x] 1. Create AcademicYear model (`src/backend/models/AcademicYear.js`)
-- [x] 2. Create AcademicYear controller (`src/backend/controllers/academicYearController.js`)
-- [x] 3. Create API route for list/create (`src/app/api/super-admin/academic-years/route.js`)
-- [x] 4. Create API route for single item (`src/app/api/super-admin/academic-years/[id]/route.js`)
-- [x] 5. Create frontend page (`src/app/(dashboard)/super-admin/academic/academic-years/page.js`)
-- [x] 6. Update Sidebar to add navigation menu item
-- [x] 7. Create Branch-Admin API endpoint (`src/app/api/branch-admin/academic-years/route.js`)
-- [x] 8. Migrate academicYear from String to ObjectId in models:
-  - Class model
-  - Timetable model
-  - Syllabus model
-  - User model
-  - Grade model
-- [x] 9. Create AcademicYearDropdown component
-- [x] 10. Update frontend pages to use AcademicYearDropdown
-
-## Progress:
-- All tasks completed successfully!

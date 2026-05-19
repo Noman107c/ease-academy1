@@ -9,10 +9,18 @@ import Exam from '@/backend/models/Exam';
 import Expense from '@/backend/models/Expense';
 import Notification from '@/backend/models/Notification';
 import FeeTemplate from '@/backend/models/FeeTemplate';
-import connectDB from '@/lib/database';
+import connectDB, { isMockMode } from '@/lib/database';
+import { getMockSuperAdminDashboardStats } from '@/lib/mock-data';
 
 async function handler(request) {
   try {
+    if (isMockMode()) {
+      return NextResponse.json({
+        success: true,
+        data: getMockSuperAdminDashboardStats(),
+      });
+    }
+
     await connectDB();
 
     // Get current date and date ranges

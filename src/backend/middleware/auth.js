@@ -1,8 +1,9 @@
 import jwt from 'jsonwebtoken';
 import { NextResponse } from 'next/server';
 import User from '@/backend/models/User';
-import connectDB from '@/lib/database';
+import connectDB, { isMockMode } from '@/lib/database';
 import { ROLES, PERMISSIONS } from '@/constants/roles';
+import { getMockUserById, toSafeMockUser } from '@/lib/mock-data';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
@@ -77,6 +78,49 @@ export async function authenticate(request) {
       };
     }
     
+    if (isMockMode()) {
+      const mockUser = getMockUserById(decoded.userId);
+
+      if (!mockUser) {
+        return {
+          error: true,
+          message: 'User not found. Token may be invalid.',
+          status: 401,
+        };
+      }
+
+      const safeUser = toSafeMockUser(mockUser);
+
+      return {
+        error: false,
+        user: {
+          userId: safeUser._id,
+          email: safeUser.email,
+          fullName: safeUser.fullName,
+          firstName: safeUser.firstName,
+          lastName: safeUser.lastName,
+          role: safeUser.role,
+          branchId: safeUser.branchId,
+          branchName: safeUser.branchName,
+          permissions: safeUser.permissions || [],
+          profilePhoto: null,
+        },
+        userDoc: {
+          _id: safeUser._id,
+          role: safeUser.role,
+          email: safeUser.email,
+          branchId: safeUser.branchId,
+          adminProfile: safeUser.adminProfile || { permissions: [] },
+          isActive: true,
+          hasPermission: (permission) => {
+            if (safeUser.role === ROLES.SUPER_ADMIN) return true;
+            const permissions = safeUser.adminProfile?.permissions || [];
+            return permissions.includes(permission);
+          },
+        },
+      };
+    }
+
     // Connect to database
     await connectDB();
     
