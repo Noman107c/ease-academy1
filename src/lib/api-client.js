@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { API_CONFIG, buildUrl, getFullUrl } from '@/constants/api-endpoints';
+import { API_CONFIG, API_ENDPOINTS, buildUrl, getFullUrl } from '@/constants/api-endpoints';
 
 /**
  * Enhanced API Client with Axios
@@ -93,7 +93,7 @@ apiClient.interceptors.response.use(
 
         if (refreshToken) {
           const response = await axios.post(
-            getFullUrl('/auth/refresh'),
+            getFullUrl(API_ENDPOINTS.AUTH.REFRESH),
             { refreshToken }
           );
 

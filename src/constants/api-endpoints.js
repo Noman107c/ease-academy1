@@ -1,6 +1,26 @@
 // API Configuration
+const resolveApiBaseUrl = () => {
+  const configuredBaseUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+
+  if (typeof window !== 'undefined') {
+    const currentOrigin = window.location.origin;
+
+    if (!configuredBaseUrl) {
+      return currentOrigin;
+    }
+
+    if (configuredBaseUrl.includes('localhost') || configuredBaseUrl.includes('127.0.0.1')) {
+      return currentOrigin;
+    }
+
+    return configuredBaseUrl;
+  }
+
+  return configuredBaseUrl || '';
+};
+
 export const API_CONFIG = {
-  BASE_URL: process.env.NEXT_PUBLIC_API_URL || '',
+  BASE_URL: resolveApiBaseUrl(),
   TIMEOUT: 30000, // 30 seconds
   RETRY_ATTEMPTS: 3,
   RETRY_DELAY: 1000, // 1 second
@@ -944,7 +964,16 @@ export const buildUrl = (endpoint, params = {}) => {
 
 // Helper function to build full API URL
 export const getFullUrl = (endpoint) => {
-  return `${API_CONFIG.BASE_URL}${endpoint}`;
+  if (!endpoint) {
+    return API_CONFIG.BASE_URL;
+  }
+
+  if (/^https?:\/\//i.test(endpoint)) {
+    return endpoint;
+  }
+
+  const baseUrl = API_CONFIG.BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '');
+  return `${baseUrl}${endpoint}`;
 };
 
 export default API_ENDPOINTS;
