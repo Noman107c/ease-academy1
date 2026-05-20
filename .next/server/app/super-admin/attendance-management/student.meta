@@ -1,0 +1,18 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(dashboard)/layout,_N_T_/(dashboard)/super-admin/layout,_N_T_/(dashboard)/super-admin/attendance-management/layout,_N_T_/(dashboard)/super-admin/attendance-management/student/layout,_N_T_/(dashboard)/super-admin/attendance-management/student/page,_N_T_/super-admin/attendance-management/student"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KGRhc2hib2FyZCk/super-admin/attendance-management/student/__PAGE__",
+    "/!KGRhc2hib2FyZCk/super-admin/attendance-management/student",
+    "/!KGRhc2hib2FyZCk/super-admin/attendance-management",
+    "/!KGRhc2hib2FyZCk/super-admin",
+    "/!KGRhc2hib2FyZCk",
+    "/_index",
+    "/_head"
+  ]
+}

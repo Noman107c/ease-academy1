@@ -1,0 +1,18 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(dashboard)/layout,_N_T_/(dashboard)/super-admin/layout,_N_T_/(dashboard)/super-admin/analytics/layout,_N_T_/(dashboard)/super-admin/analytics/operational/layout,_N_T_/(dashboard)/super-admin/analytics/operational/page,_N_T_/super-admin/analytics/operational"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KGRhc2hib2FyZCk/super-admin/analytics/operational/__PAGE__",
+    "/!KGRhc2hib2FyZCk/super-admin/analytics/operational",
+    "/!KGRhc2hib2FyZCk/super-admin/analytics",
+    "/!KGRhc2hib2FyZCk/super-admin",
+    "/!KGRhc2hib2FyZCk",
+    "/_index",
+    "/_head"
+  ]
+}

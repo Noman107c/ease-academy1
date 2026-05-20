@@ -1,0 +1,3 @@
+{
+  "/api/super-admin/timetables/[id]/route": "app/api/super-admin/timetables/[id]/route.js"
+}

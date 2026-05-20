@@ -1,0 +1,3 @@
+{
+  "/api/branch-admin/timetables/[id]/route": "app/api/branch-admin/timetables/[id]/route.js"
+}

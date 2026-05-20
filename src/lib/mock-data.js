@@ -82,7 +82,7 @@ const MOCK_USERS = [
 ];
 
 export function isMockModeEnabled() {
-  return process.env.ENABLE_REAL_DB !== 'true' || !process.env.MONGODB_URI;
+  return true;
 }
 
 export function getMockUsers() {

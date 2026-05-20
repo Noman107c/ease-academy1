@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { Card } from '@/components/ui/card';
 import ChartFilters from './ChartFilters';
+import apiClient from '@/lib/api-client';
 
 // Constants
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -113,16 +114,7 @@ const MonthlyFeeCollection = () => {
       setLoading(true);
       setError(null);
 
-      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
-      const response = await fetch('/api/branch-admin/fee-vouchers?limit=1000', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      const result = await response.json();
+      const result = await apiClient.get('/api/branch-admin/fee-vouchers?limit=1000');
 
       if (result.success) {
         const vouchers = result.data?.vouchers || result.vouchers || [];

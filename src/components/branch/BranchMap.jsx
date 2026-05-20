@@ -5,6 +5,7 @@ import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-lea
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Search } from 'lucide-react';
+import { isMockModeEnabled } from '@/lib/mock-data';
 
 // Fix for default marker icon in Leaflet
 const icon = L.icon({
@@ -38,6 +39,7 @@ function ChangeView({ center }) {
 export default function BranchMap({ latitude, longitude, onLocationChange }) {
   const [position, setPosition] = useState({ lat: latitude, lng: longitude });
   const [searchQuery, setSearchQuery] = useState('');
+  const mockMode = isMockModeEnabled();
 
   useEffect(() => {
     setPosition({ lat: latitude, lng: longitude });
@@ -46,6 +48,13 @@ export default function BranchMap({ latitude, longitude, onLocationChange }) {
   const handleSearch = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
     if (!searchQuery) return;
+
+    if (isMockModeEnabled()) {
+      const mockPosition = { lat: 24.8607, lng: 67.0011 };
+      setPosition(mockPosition);
+      onLocationChange(mockPosition);
+      return;
+    }
 
     try {
       const response = await fetch(
@@ -98,6 +107,22 @@ export default function BranchMap({ latitude, longitude, onLocationChange }) {
         </div>
       </div>
 
+      {mockMode ? (
+        <div className="h-[300px] w-full rounded-lg overflow-hidden border border-gray-300 z-0 bg-gradient-to-br from-slate-50 via-white to-blue-50 flex items-center justify-center">
+          <div className="text-center space-y-3 px-6">
+            <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-blue-600 text-white shadow-lg">
+              <Search className="w-7 h-7" />
+            </div>
+            <div>
+              <p className="text-lg font-semibold text-gray-900">Mock map preview</p>
+              <p className="text-sm text-gray-500">Lat: {position.lat.toFixed(6)} | Lng: {position.lng.toFixed(6)}</p>
+            </div>
+            <p className="text-xs text-gray-400 max-w-xs mx-auto">
+              Live map tiles are disabled in mock mode to keep the app fully offline.
+            </p>
+          </div>
+        </div>
+      ) : (
       <div className="h-[300px] w-full rounded-lg overflow-hidden border border-gray-300 z-0">
         <MapContainer
           center={[position.lat, position.lng]}
@@ -113,6 +138,7 @@ export default function BranchMap({ latitude, longitude, onLocationChange }) {
           <LocationMarker position={position} setPosition={handlePositionChange} />
         </MapContainer>
       </div>
+      )}
       
       <div className="grid grid-cols-2 gap-4 text-xs text-gray-500">
         <div>Lat: {position.lat.toFixed(6)}</div>

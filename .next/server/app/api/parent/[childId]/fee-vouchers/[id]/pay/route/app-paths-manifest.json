@@ -1,0 +1,3 @@
+{
+  "/api/parent/[childId]/fee-vouchers/[id]/pay/route": "app/api/parent/[childId]/fee-vouchers/[id]/pay/route.js"
+}

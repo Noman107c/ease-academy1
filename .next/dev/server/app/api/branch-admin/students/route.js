@@ -1,0 +1,11 @@
+var R=require("../../../../chunks/[turbopack]_runtime.js")("server/app/api/branch-admin/students/route.js")
+R.c("server/chunks/src_lib_9e40d77c._.js")
+R.c("server/chunks/[root-of-the-server]__55e63868._.js")
+R.c("server/chunks/node_modules_next_78309667._.js")
+R.c("server/chunks/node_modules_nodemailer_f0e2e4c8._.js")
+R.c("server/chunks/node_modules_lodash_9f355569._.js")
+R.c("server/chunks/node_modules_cloudinary_0ecd8ca6._.js")
+R.c("server/chunks/node_modules_3bd45dbf._.js")
+R.c("server/chunks/_next-internal_server_app_api_branch-admin_students_route_actions_18ba8f3b.js")
+R.m("[project]/node_modules/next/dist/esm/build/templates/app-route.js { INNER_APP_ROUTE => \"[project]/src/app/api/branch-admin/students/route.js [app-route] (ecmascript)\" } [app-route] (ecmascript)")
+module.exports=R.m("[project]/node_modules/next/dist/esm/build/templates/app-route.js { INNER_APP_ROUTE => \"[project]/src/app/api/branch-admin/students/route.js [app-route] (ecmascript)\" } [app-route] (ecmascript)").exports

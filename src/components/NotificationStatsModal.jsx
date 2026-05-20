@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { X, Users, CheckCircle, Clock, User, Filter } from "lucide-react";
+import apiClient from "@/lib/api-client";
 
 export default function NotificationStatsModal({ notification, onClose }) {
   const [stats, setStats] = useState(null);
@@ -15,20 +16,14 @@ export default function NotificationStatsModal({ notification, onClose }) {
 
   const fetchStats = async () => {
     try {
-      const token =
-        localStorage.getItem("accessToken") || localStorage.getItem("token");
       const ids = notification.notificationIds.join(",");
 
-      const response = await fetch(
+      const response = await apiClient.get(
         `/api/notifications/stats?notificationIds=${ids}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
       );
 
-      const data = await response.json();
-      if (data.success) {
-        setStats(data.data);
+      if (response.success) {
+        setStats(response.data);
       }
     } catch (error) {
       console.error("Stats Fetch Error:", error);

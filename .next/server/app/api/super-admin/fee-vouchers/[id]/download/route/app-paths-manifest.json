@@ -1,0 +1,3 @@
+{
+  "/api/super-admin/fee-vouchers/[id]/download/route": "app/api/super-admin/fee-vouchers/[id]/download/route.js"
+}

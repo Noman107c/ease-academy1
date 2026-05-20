@@ -1,0 +1,18 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(dashboard)/layout,_N_T_/(dashboard)/super-admin/layout,_N_T_/(dashboard)/super-admin/student-management/layout,_N_T_/(dashboard)/super-admin/student-management/students/layout,_N_T_/(dashboard)/super-admin/student-management/students/page,_N_T_/super-admin/student-management/students"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KGRhc2hib2FyZCk/super-admin/student-management/students/__PAGE__",
+    "/!KGRhc2hib2FyZCk/super-admin/student-management/students",
+    "/!KGRhc2hib2FyZCk/super-admin/student-management",
+    "/!KGRhc2hib2FyZCk/super-admin",
+    "/!KGRhc2hib2FyZCk",
+    "/_index",
+    "/_head"
+  ]
+}

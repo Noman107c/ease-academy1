@@ -1,11 +1,4 @@
-import dns from "node:dns/promises";
-dns.setServers(["8.8.8.8", "8.8.4.4"]);
-
-import mongoose from 'mongoose';
-
-const MONGODB_URI = process.env.MONGODB_URI;
-const ENABLE_REAL_DB = process.env.ENABLE_REAL_DB === 'true';
-const MOCK_MODE = !ENABLE_REAL_DB || !MONGODB_URI;
+const MOCK_MODE = true;
 
 /**
  * Global is used here to maintain a cached connection across hot reloads
@@ -19,33 +12,7 @@ if (!cached) {
 }
 
 async function connectDB() {
-  if (MOCK_MODE) {
-    return null;
-  }
-
-  if (cached.conn) {
-    return cached.conn;
-  }
-
-  if (!cached.promise) {
-    const opts = {
-      bufferCommands: false,
-    };
-
-    cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
-      console.log('✅ MongoDB connected successfully');
-      return mongoose;
-    });
-  }
-
-  try {
-    cached.conn = await cached.promise;
-  } catch (e) {
-    cached.promise = null;
-    throw e;
-  }
-
-  return cached.conn;
+  return null;
 }
 
 export function isMockMode() {

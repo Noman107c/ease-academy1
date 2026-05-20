@@ -1,0 +1,17 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(dashboard)/layout,_N_T_/(dashboard)/branch-admin/layout,_N_T_/(dashboard)/branch-admin/fee-categories/layout,_N_T_/(dashboard)/branch-admin/fee-categories/page,_N_T_/branch-admin/fee-categories"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KGRhc2hib2FyZCk/branch-admin/fee-categories/__PAGE__",
+    "/!KGRhc2hib2FyZCk/branch-admin/fee-categories",
+    "/!KGRhc2hib2FyZCk/branch-admin",
+    "/!KGRhc2hib2FyZCk",
+    "/_index",
+    "/_head"
+  ]
+}

@@ -18,6 +18,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import Modal from '@/components/ui/modal';
+import { isMockModeEnabled } from '@/lib/mock-data';
 
 const AttendanceViewModal = ({ open, onClose, attendanceRecord }) => {
   if (!attendanceRecord) return null;
@@ -39,6 +40,10 @@ const AttendanceViewModal = ({ open, onClose, attendanceRecord }) => {
 
   // Reverse geocoding function using OpenStreetMap Nominatim API
   const reverseGeocode = async (lat, lng) => {
+    if (isMockModeEnabled()) {
+      return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    }
+
     try {
       const response = await fetch(
         `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,

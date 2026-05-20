@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Bell, CheckCheck, Trash2, RefreshCw } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import apiClient from "@/lib/api-client";
 import { toast } from "sonner";
 
 export default function NotificationBell() {
@@ -18,21 +19,16 @@ export default function NotificationBell() {
   const fetchNotis = async () => {
     if (!user?._id && !user?.id) return;
     const userId = user._id || user.id;
-    const token =
-      localStorage.getItem("accessToken") || localStorage.getItem("token");
 
     try {
       setLoading(true);
-      const res = await fetch(
+      const response = await apiClient.get(
         `/api/notifications/web-notifications?userId=${userId}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
       );
-      const data = await res.json();
-      if (data.success) {
-        setNotifications(data.data.notifications);
-        setUnreadCount(data.data.unreadCount);
+
+      if (response.success) {
+        setNotifications(response.data.notifications || []);
+        setUnreadCount(response.data.unreadCount || 0);
       }
     } catch (err) {
       console.error("Notification Fetch Error:", err);
@@ -43,8 +39,6 @@ export default function NotificationBell() {
 
   const markAsRead = async (notification) => {
     try {
-      const token =
-        localStorage.getItem("accessToken") || localStorage.getItem("token");
       const notifId = notification._id || notification.id;
 
       setNotifications((prev) =>
@@ -54,16 +48,9 @@ export default function NotificationBell() {
       );
       setUnreadCount((c) => Math.max(0, c - 1));
 
-      await fetch("/api/notifications", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          notificationId: notifId,
-          isEvent: notification.isEvent || false,
-        }),
+      await apiClient.patch("/api/notifications", {
+        notificationId: notifId,
+        isEvent: notification.isEvent || false,
       });
     } catch (err) {
       console.error("Mark read failed", err);
@@ -72,23 +59,11 @@ export default function NotificationBell() {
 
   const markAllAsRead = async () => {
     try {
-      const token =
-        localStorage.getItem("accessToken") || localStorage.getItem("token");
-
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
       setUnreadCount(0);
 
-      const res = await fetch("/api/notifications", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ markAll: true }),
-      });
-
-      const data = await res.json();
-      if (data.success) {
+      const response = await apiClient.patch("/api/notifications", { markAll: true });
+      if (response.success) {
         toast.success("All notifications marked as read");
       }
     } catch (err) {
@@ -101,8 +76,6 @@ export default function NotificationBell() {
     if (e) e.stopPropagation();
 
     try {
-      const token =
-        localStorage.getItem("accessToken") || localStorage.getItem("token");
       const notifId = notification._id || notification.id;
 
       // Optimistic Update
@@ -113,16 +86,11 @@ export default function NotificationBell() {
         setUnreadCount((c) => Math.max(0, c - 1));
       }
 
-      await fetch("/api/notifications", {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+      await apiClient.delete("/api/notifications", {
+        data: {
           notificationId: notifId,
           isEvent: notification.isEvent || false,
-        }),
+        },
       });
     } catch (err) {
       console.error("Delete failed", err);
@@ -418,10 +386,6 @@ export default function NotificationBell() {
                         )
                       ) {
                         try {
-                          const token =
-                            localStorage.getItem("accessToken") ||
-                            localStorage.getItem("token");
-
                           const payload = {
                             notificationId:
                               selectedNotification._id ||
@@ -434,26 +398,15 @@ export default function NotificationBell() {
                             payload,
                           );
 
-                          const response = await fetch("/api/notifications", {
-                            method: "DELETE",
-                            headers: {
-                              "Content-Type": "application/json",
-                              Authorization: `Bearer ${token}`,
-                            },
-                            body: JSON.stringify(payload),
+                          const response = await apiClient.delete("/api/notifications", {
+                            data: payload,
                           });
 
-                          console.log(
-                            "📡 Delete response status:",
-                            response.status,
-                          );
+                          console.log("📦 Delete response data:", response);
 
-                          const data = await response.json();
-                          console.log("📦 Delete response data:", data);
-
-                          if (!response.ok || !data.success) {
+                          if (!response.success) {
                             throw new Error(
-                              data.message || "Failed to delete notification",
+                              response.message || "Failed to delete notification",
                             );
                           }
 

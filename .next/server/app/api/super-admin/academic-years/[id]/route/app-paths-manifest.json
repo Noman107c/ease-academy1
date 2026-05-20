@@ -1,0 +1,3 @@
+{
+  "/api/super-admin/academic-years/[id]/route": "app/api/super-admin/academic-years/[id]/route.js"
+}

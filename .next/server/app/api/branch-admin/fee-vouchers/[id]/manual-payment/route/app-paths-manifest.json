@@ -1,0 +1,3 @@
+{
+  "/api/branch-admin/fee-vouchers/[id]/manual-payment/route": "app/api/branch-admin/fee-vouchers/[id]/manual-payment/route.js"
+}

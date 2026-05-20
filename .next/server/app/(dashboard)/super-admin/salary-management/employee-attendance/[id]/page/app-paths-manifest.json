@@ -1,0 +1,3 @@
+{
+  "/(dashboard)/super-admin/salary-management/employee-attendance/[id]/page": "app/(dashboard)/super-admin/salary-management/employee-attendance/[id]/page.js"
+}

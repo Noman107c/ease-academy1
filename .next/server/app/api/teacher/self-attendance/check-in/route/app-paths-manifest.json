@@ -1,0 +1,3 @@
+{
+  "/api/teacher/self-attendance/check-in/route": "app/api/teacher/self-attendance/check-in/route.js"
+}

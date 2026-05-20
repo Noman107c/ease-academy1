@@ -1,0 +1,18 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(dashboard)/layout,_N_T_/(dashboard)/super-admin/layout,_N_T_/(dashboard)/super-admin/configuration/layout,_N_T_/(dashboard)/super-admin/configuration/general/layout,_N_T_/(dashboard)/super-admin/configuration/general/page,_N_T_/super-admin/configuration/general"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KGRhc2hib2FyZCk/super-admin/configuration/general/__PAGE__",
+    "/!KGRhc2hib2FyZCk/super-admin/configuration/general",
+    "/!KGRhc2hib2FyZCk/super-admin/configuration",
+    "/!KGRhc2hib2FyZCk/super-admin",
+    "/!KGRhc2hib2FyZCk",
+    "/_index",
+    "/_head"
+  ]
+}
