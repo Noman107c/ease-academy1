@@ -1,1 +1,0 @@
-{"version":3,"sources":["../../../../src/app/%28dashboard%29/teacher/layout.js"],"sourcesContent":["\"use client\";\r\n\r\nexport default function TeacherLayout({ children }) {\r\n  return <>{children}</>;\r\n}\r\n"],"names":[],"mappings":"0DAEe,SAAS,EAAc,UAAE,CAAQ,CAAE,EAChD,MAAO,CAAA,EAAA,EAAA,GAAA,EAAA,EAAA,QAAA,CAAA,UAAG,GACZ"}

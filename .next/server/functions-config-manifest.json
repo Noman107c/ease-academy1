@@ -1,8 +1,0 @@
-{
-  "version": 1,
-  "functions": {
-    "/api/branch-admin/library/books": {},
-    "/api/upload/multiple": {},
-    "/api/upload": {}
-  }
-}
