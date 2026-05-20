@@ -1,5 +1,5 @@
 ﻿import { NextResponse } from 'next/server';
-import { isMockModeEnabled, getMockUserById, toSafeMockUser } from '@/lib/mock-data';
+import { isMockModeEnabled, getMockUserById, toMockClientUser, toSafeMockUser } from '@/lib/mock-data';
 
 // Defer expensive imports (controllers/middleware) when not needed
 
@@ -21,7 +21,7 @@ export async function GET(request) {
           return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });
         }
 
-        return NextResponse.json({ success: true, data: toSafeMockUser(mockUser) }, { status: 200 });
+        return NextResponse.json({ success: true, data: toMockClientUser(mockUser) }, { status: 200 });
       } catch (e) {
         return NextResponse.json({ success: false, message: 'Invalid token' }, { status: 401 });
       }
@@ -70,7 +70,7 @@ export async function PUT(request) {
 
         const body = await request.json();
         // Return merged mock user (simulate update)
-        const updated = { ...toSafeMockUser(mockUser), ...body };
+        const updated = { ...toMockClientUser(mockUser), ...body };
         return NextResponse.json({ success: true, data: updated }, { status: 200 });
       } catch (e) {
         return NextResponse.json({ success: false, message: 'Invalid token' }, { status: 401 });

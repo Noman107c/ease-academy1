@@ -19,11 +19,7 @@ export default function AcademicReportsPage() {
     topPerformers: 0,
   });
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  async function fetchData() {
     try {
       const [branchRes, classRes, studentRes] = await Promise.all([
         apiClient.get('/api/super-admin/branches?limit=100'),
@@ -44,7 +40,11 @@ export default function AcademicReportsPage() {
     } catch (error) {
       console.error(error);
     }
-  };
+  }
+
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   return (
     <div className="p-6">

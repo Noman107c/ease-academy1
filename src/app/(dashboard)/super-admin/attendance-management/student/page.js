@@ -86,17 +86,15 @@ export default function StudentAttendancePage() {
 
   const [attendance, setAttendance] = useState({});
 
-  useEffect(() => {
-    fetchBranches();
-    fetchDepartments();
-    fetchClasses();
-  }, []);
+  function initialiseAttendance(records) {
+    const nextAttendance = {};
+    records.forEach((record) => {
+      nextAttendance[record._id] = 'present';
+    });
+    setAttendance(nextAttendance);
+  }
 
-  useEffect(() => {
-    fetchStudents();
-  }, [filters.branchId, filters.departmentId, filters.classId]);
-
-  const fetchBranches = async () => {
+  async function fetchBranches() {
     try {
       const response = await apiClient.get('/api/super-admin/branches?limit=200');
       if (response.success) {
@@ -107,9 +105,9 @@ export default function StudentAttendancePage() {
       console.warn('Falling back to sample branches', error);
     }
     setBranches(FALLBACK_BRANCHES);
-  };
+  }
 
-  const fetchDepartments = async () => {
+  async function fetchDepartments() {
     try {
       const response = await apiClient.get('/api/super-admin/departments?limit=200');
       if (response.success) {
@@ -120,9 +118,9 @@ export default function StudentAttendancePage() {
       console.warn('Falling back to sample departments', error);
     }
     setDepartments(FALLBACK_DEPARTMENTS);
-  };
+  }
 
-  const fetchClasses = async () => {
+  async function fetchClasses() {
     try {
       const response = await apiClient.get('/api/super-admin/classes?limit=200');
       if (response.success) {
@@ -133,9 +131,9 @@ export default function StudentAttendancePage() {
       console.warn('Falling back to sample classes', error);
     }
     setClasses(FALLBACK_CLASSES);
-  };
+  }
 
-  const fetchStudents = async () => {
+  async function fetchStudents() {
     setLoading(true);
     try {
       const params = new URLSearchParams({ 
@@ -165,15 +163,17 @@ export default function StudentAttendancePage() {
       initialiseAttendance(filtered);
       return filtered;
     });
-  };
+  }
 
-  const initialiseAttendance = (records) => {
-    const nextAttendance = {};
-    records.forEach((record) => {
-      nextAttendance[record._id] = 'present';
-    });
-    setAttendance(nextAttendance);
-  };
+  useEffect(() => {
+    fetchBranches();
+    fetchDepartments();
+    fetchClasses();
+  }, []);
+
+  useEffect(() => {
+    fetchStudents();
+  }, [filters.branchId, filters.departmentId, filters.classId]);
 
   const stats = useMemo(() => {
     const total = Object.keys(attendance).length;

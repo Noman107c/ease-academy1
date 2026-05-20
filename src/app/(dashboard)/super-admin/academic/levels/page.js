@@ -54,8 +54,6 @@ export default function LevelsAdminPage() {
     const gssFormRef = useRef(null);
     const [gssForm, setGssForm] = useState({ gradeId: '', streamId: '', subjectId: '', isCompulsory: false, notes: '' });
 
-    useEffect(() => { loadLevels(); loadGrades(); loadStreams(); loadGss(); loadSubjects(); }, []);
-
     // stats
     const stats = {
         levels: levels.length,
@@ -63,6 +61,64 @@ export default function LevelsAdminPage() {
         streams: streams.length,
         gss: gssItems.length,
     };
+
+    /* Levels CRUD */
+    async function loadLevels() {
+        setLoadingLevels(true);
+        try {
+            const res = await apiClient.get(`${API_ENDPOINTS.SCHOOL.LEVELS.LIST}?limit=100`);
+            if (res?.success) setLevels(res.data || []);
+        } catch (err) { console.error(err); toast.error('Failed to load levels'); }
+        setLoadingLevels(false);
+    }
+
+    const handleEditLevel = (lvl) => { setEditingLevel(lvl); setLevelForm({ name: lvl.name || '', code: lvl.code || '', order: lvl.order || 0, description: lvl.description || '' }); setShowLevelModal(true); };
+    const handleDeleteLevel = async (id) => { if (!confirm('Delete this level? This action cannot be undone.')) return; try { const res = await apiClient.delete(API_ENDPOINTS.SCHOOL.LEVELS.DELETE.replace(':id', id)); if (res?.success) { toast.success('Level deleted'); loadLevels(); } } catch (err) { console.error(err); toast.error('Delete failed'); } };
+
+    /* Grades CRUD */
+    async function loadGrades() {
+        setLoadingGrades(true);
+        try {
+            const res = await apiClient.get(`${API_ENDPOINTS.SCHOOL.GRADES.LIST}?limit=100`);
+            if (res?.success) setGrades(res.data || []);
+        } catch (err) { console.error(err); toast.error('Failed to load grades'); }
+        setLoadingGrades(false);
+    }
+
+    const handleEditGrade = (g) => { setEditingGrade(g); setGradeForm({ name: g.name || '', gradeNumber: g.gradeNumber || '', levelId: (g.levelId?._id || g.levelId) || '', code: g.code || '', academicYear: g.academicYear || '' }); setShowGradeModal(true); };
+    const handleDeleteGrade = async (id) => { if (!confirm('Delete this grade? This action cannot be undone.')) return; try { const res = await apiClient.delete(API_ENDPOINTS.SCHOOL.GRADES.DELETE.replace(':id', id)); if (res?.success) { toast.success('Grade deleted'); loadGrades(); } } catch (err) { console.error(err); toast.error('Delete failed'); } };
+
+    /* Streams CRUD */
+    async function loadStreams() {
+        setLoadingStreams(true);
+        try {
+            const res = await apiClient.get(`${API_ENDPOINTS.SCHOOL.STREAMS.LIST}?limit=100`);
+            if (res?.success) setStreams(res.data || []);
+        } catch (err) { console.error(err); toast.error('Failed to load streams'); }
+        setLoadingStreams(false);
+    }
+
+    const handleEditStream = (s) => { setEditingStream(s); setStreamForm({ name: s.name || '', code: s.code || '', description: s.description || '' }); setShowStreamModal(true); };
+    const handleDeleteStream = async (id) => { if (!confirm('Delete this stream? This action cannot be undone.')) return; try { const res = await apiClient.delete(API_ENDPOINTS.SCHOOL.STREAMS.DELETE.replace(':id', id)); if (res?.success) { toast.success('Stream deleted'); loadStreams(); } } catch (err) { console.error(err); toast.error('Delete failed'); } };
+
+    /* Grade-Stream-Subject CRUD */
+    async function loadGss() {
+        setLoadingGss(true);
+        try {
+            const res = await apiClient.get(`${API_ENDPOINTS.SCHOOL.GRADE_STREAM_SUBJECTS.LIST}?limit=200`);
+            if (res?.success) setGssItems(res.data || []);
+        } catch (err) { console.error(err); toast.error('Failed to load grade-stream-subjects'); }
+        setLoadingGss(false);
+    }
+
+    async function loadSubjects() {
+        try {
+            const res = await apiClient.get(`${API_ENDPOINTS.SUPER_ADMIN.SUBJECTS.LIST}?limit=200`);
+            if (res?.success) setSubjects(res.data || []);
+        } catch (err) { console.error(err); }
+    }
+
+    useEffect(() => { loadLevels(); loadGrades(); loadStreams(); loadGss(); loadSubjects(); }, []);
 
     // Poll for real-time updates every 10s when page is visible
     useEffect(() => {
@@ -82,62 +138,6 @@ export default function LevelsAdminPage() {
 
         return () => clearInterval(iv);
     }, []);
-
-    /* Levels CRUD */
-    const loadLevels = async () => {
-        setLoadingLevels(true);
-        try {
-            const res = await apiClient.get(`${API_ENDPOINTS.SCHOOL.LEVELS.LIST}?limit=100`);
-            if (res?.success) setLevels(res.data || []);
-        } catch (err) { console.error(err); toast.error('Failed to load levels'); }
-        setLoadingLevels(false);
-    };
-
-    const handleEditLevel = (lvl) => { setEditingLevel(lvl); setLevelForm({ name: lvl.name || '', code: lvl.code || '', order: lvl.order || 0, description: lvl.description || '' }); setShowLevelModal(true); };
-    const handleDeleteLevel = async (id) => { if (!confirm('Delete this level? This action cannot be undone.')) return; try { const res = await apiClient.delete(API_ENDPOINTS.SCHOOL.LEVELS.DELETE.replace(':id', id)); if (res?.success) { toast.success('Level deleted'); loadLevels(); } } catch (err) { console.error(err); toast.error('Delete failed'); } };
-
-    /* Grades CRUD */
-    const loadGrades = async () => {
-        setLoadingGrades(true);
-        try {
-            const res = await apiClient.get(`${API_ENDPOINTS.SCHOOL.GRADES.LIST}?limit=100`);
-            if (res?.success) setGrades(res.data || []);
-        } catch (err) { console.error(err); toast.error('Failed to load grades'); }
-        setLoadingGrades(false);
-    };
-
-    const handleEditGrade = (g) => { setEditingGrade(g); setGradeForm({ name: g.name || '', gradeNumber: g.gradeNumber || '', levelId: (g.levelId?._id || g.levelId) || '', code: g.code || '', academicYear: g.academicYear || '' }); setShowGradeModal(true); };
-    const handleDeleteGrade = async (id) => { if (!confirm('Delete this grade? This action cannot be undone.')) return; try { const res = await apiClient.delete(API_ENDPOINTS.SCHOOL.GRADES.DELETE.replace(':id', id)); if (res?.success) { toast.success('Grade deleted'); loadGrades(); } } catch (err) { console.error(err); toast.error('Delete failed'); } };
-
-    /* Streams CRUD */
-    const loadStreams = async () => {
-        setLoadingStreams(true);
-        try {
-            const res = await apiClient.get(`${API_ENDPOINTS.SCHOOL.STREAMS.LIST}?limit=100`);
-            if (res?.success) setStreams(res.data || []);
-        } catch (err) { console.error(err); toast.error('Failed to load streams'); }
-        setLoadingStreams(false);
-    };
-
-    const handleEditStream = (s) => { setEditingStream(s); setStreamForm({ name: s.name || '', code: s.code || '', description: s.description || '' }); setShowStreamModal(true); };
-    const handleDeleteStream = async (id) => { if (!confirm('Delete this stream? This action cannot be undone.')) return; try { const res = await apiClient.delete(API_ENDPOINTS.SCHOOL.STREAMS.DELETE.replace(':id', id)); if (res?.success) { toast.success('Stream deleted'); loadStreams(); } } catch (err) { console.error(err); toast.error('Delete failed'); } };
-
-    /* Grade-Stream-Subject CRUD */
-    const loadGss = async () => {
-        setLoadingGss(true);
-        try {
-            const res = await apiClient.get(`${API_ENDPOINTS.SCHOOL.GRADE_STREAM_SUBJECTS.LIST}?limit=200`);
-            if (res?.success) setGssItems(res.data || []);
-        } catch (err) { console.error(err); toast.error('Failed to load grade-stream-subjects'); }
-        setLoadingGss(false);
-    };
-
-    const loadSubjects = async () => {
-        try {
-            const res = await apiClient.get(`${API_ENDPOINTS.SUPER_ADMIN.SUBJECTS.LIST}?limit=200`);
-            if (res?.success) setSubjects(res.data || []);
-        } catch (err) { console.error(err); }
-    };
 
     const saveLevel = async (e) => {
     e.preventDefault();

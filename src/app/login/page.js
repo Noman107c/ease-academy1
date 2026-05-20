@@ -50,7 +50,6 @@ export default function LoginPage() {
     { email: 'superadmin@easeacademy.com', password: 'SuperAdmin@123', role: 'Super Admin' },
     { email: 'branchadmin@easeacademy.com', password: 'BranchAdmin@123', role: 'Branch Admin' },
     { email: 'teacher1@easeacademy.com', password: 'Teacher@123', role: 'Teacher' },
-    { email: 'student1@easeacademy.com', password: 'Student@123', role: 'Student' },
     { email: 'parent1@easeacademy.com', password: 'Parent@123', role: 'Parent' },
     { email: 'staff1@easeacademy.com', password: 'Staff@123', role: 'Staff' },
   ];
@@ -185,7 +184,7 @@ export default function LoginPage() {
                   className="w-full justify-start"
                 >
                   <div className="text-left leading-tight">
-                    <div className="font-sm">{account.role} ,{account.email}</div>
+                    <div className="font-sm">{account.role} {account.email}</div>
                     <div className="text-xs opacity-80">{account.password}</div>
                   </div>
                 </Button>

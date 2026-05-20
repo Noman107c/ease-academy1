@@ -90,16 +90,15 @@ export default function StaffAttendancePage() {
 
   const [attendance, setAttendance] = useState({});
 
-  useEffect(() => {
-    fetchBranches();
-    fetchDepartments();
-  }, []);
+  function initialiseAttendance(records) {
+    const nextAttendance = {};
+    records.forEach((record) => {
+      nextAttendance[record._id] = 'present';
+    });
+    setAttendance(nextAttendance);
+  }
 
-  useEffect(() => {
-    fetchStaff();
-  }, [filters.branchId, filters.departmentId, filters.role, filters.shift]);
-
-  const fetchBranches = async () => {
+  async function fetchBranches() {
     try {
       const response = await apiClient.get('/api/super-admin/branches?limit=200');
       if (response.success) {
@@ -110,9 +109,9 @@ export default function StaffAttendancePage() {
       console.warn('Falling back to sample branches', error);
     }
     setBranches(FALLBACK_BRANCHES);
-  };
+  }
 
-  const fetchDepartments = async () => {
+  async function fetchDepartments() {
     try {
       const response = await apiClient.get('/api/super-admin/departments?limit=200');
       if (response.success) {
@@ -123,9 +122,9 @@ export default function StaffAttendancePage() {
       console.warn('Falling back to sample departments', error);
     }
     setDepartments(FALLBACK_DEPARTMENTS);
-  };
+  }
 
-  const fetchStaff = async () => {
+  async function fetchStaff() {
     setLoading(true);
     try {
       const params = new URLSearchParams({ limit: '300' });
@@ -163,15 +162,16 @@ export default function StaffAttendancePage() {
       return filtered;
     });
     setLoading(false);
-  };
+  }
 
-  const initialiseAttendance = (records) => {
-    const nextAttendance = {};
-    records.forEach((record) => {
-      nextAttendance[record._id] = 'present';
-    });
-    setAttendance(nextAttendance);
-  };
+  useEffect(() => {
+    fetchBranches();
+    fetchDepartments();
+  }, []);
+
+  useEffect(() => {
+    fetchStaff();
+  }, [filters.branchId, filters.departmentId, filters.role, filters.shift]);
 
   const stats = useMemo(() => {
     const total = Object.keys(attendance).length;

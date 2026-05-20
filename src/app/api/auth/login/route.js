@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
-import { isMockModeEnabled, getMockUserByEmail, toSafeMockUser } from '@/lib/mock-data';
+import { isMockModeEnabled, getMockUserByEmail, toMockClientUser, toSafeMockUser } from '@/lib/mock-data';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
@@ -29,6 +29,7 @@ export async function POST(request) {
       }
 
       const safeUser = toSafeMockUser(mockUser);
+      const clientUser = toMockClientUser(mockUser);
 
       const tokenPayload = {
         userId: safeUser._id,
@@ -40,7 +41,7 @@ export async function POST(request) {
       const accessToken = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
       const refreshToken = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: JWT_REFRESH_EXPIRES_IN });
 
-      const response = NextResponse.json({ success: true, data: { user: safeUser, accessToken, refreshToken }, message: 'Login successful (mock)' }, { status: 200 });
+      const response = NextResponse.json({ success: true, data: { user: clientUser, accessToken, refreshToken }, message: 'Login successful (mock)' }, { status: 200 });
 
       response.cookies.set('refreshToken', refreshToken, {
         httpOnly: true,

@@ -56,6 +56,7 @@ export default function Home() {
       title: "Student Management",
       description: "Complete student lifecycle from admission to graduation",
       features: ["Admissions", "Attendance", "Progress Tracking", "Report Cards"],
+      mockData: "1,248 active students across 3 branches",
       color: "blue"
     },
     {
@@ -63,6 +64,7 @@ export default function Home() {
       title: "Academic Management",
       description: "Streamline curriculum, timetable, and grading",
       features: ["Timetable", "Assignments", "Exams", "Grading"],
+      mockData: "42 classes, 18 subjects, 96 weekly lessons",
       color: "purple"
     },
     {
@@ -70,6 +72,7 @@ export default function Home() {
       title: "Fee Management",
       description: "Automated fee collection and financial reporting",
       features: ["Fee Collection", "Invoices", "Expenses", "Reports"],
+      mockData: "₨2.4M collected this month, 86% on-time payments",
       color: "emerald"
     },
     {
@@ -77,6 +80,7 @@ export default function Home() {
       title: "Communication Hub",
       description: "Connect teachers, students, and parents",
       features: ["Messages", "Notices", "Announcements", "Alerts"],
+      mockData: "320 unread updates, 57 parent messages today",
       color: "orange"
     },
     {
@@ -84,6 +88,7 @@ export default function Home() {
       title: "Resource Management",
       description: "Manage school resources and inventory",
       features: ["Library", "Inventory", "Classrooms", "Transport"],
+      mockData: "8,600 books, 12 buses, 64 smart classrooms",
       color: "pink"
     },
     {
@@ -91,6 +96,7 @@ export default function Home() {
       title: "Analytics Dashboard",
       description: "Data-driven insights for decision making",
       features: ["Reports", "Analytics", "Forecasting", "KPIs"],
+      mockData: "Daily snapshots for attendance, fees, and performance",
       color: "cyan"
     }
   ];
@@ -377,6 +383,9 @@ export default function Home() {
                         </li>
                       ))}
                     </ul>
+                    <div className="mt-5 md:mt-6 rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm text-slate-700">
+                      <span className="font-semibold text-slate-900">Mock snapshot:</span> {feature.mockData}
+                    </div>
                   </CardContent>
                 </Card>
               ))}

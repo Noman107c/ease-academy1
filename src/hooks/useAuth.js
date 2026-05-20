@@ -349,7 +349,10 @@ export function AuthProvider({ children }) {
       // Super admin has access to all branches
       if (user.role === ROLES.SUPER_ADMIN) return true;
 
-      return user.branchId === branchId;
+      const currentBranchId = typeof user.branchId === "object" ? user.branchId?._id : user.branchId;
+      const targetBranchId = typeof branchId === "object" ? branchId?._id : branchId;
+
+      return currentBranchId === targetBranchId;
     },
     [user]
   );

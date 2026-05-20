@@ -1,4 +1,5 @@
 import "./globals.css";
+import Script from "next/script";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider } from "@/hooks/useAuth";
 import { Toaster } from "sonner";
@@ -12,7 +13,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+        <Script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js" strategy="beforeInteractive" />
       </head>
       <body className="antialiased bg-gray-50 transition-theme">
         <ThemeProvider defaultTheme="light">

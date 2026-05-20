@@ -20,11 +20,67 @@ import { Card } from '@/components/ui/card';
 import Modal from '@/components/ui/modal';
 import { isMockModeEnabled } from '@/lib/mock-data';
 
+const formatCoordinates = (lat, lng) => `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+
+const reverseGeocodeLocation = async (lat, lng) => {
+  if (isMockModeEnabled()) {
+    return formatCoordinates(lat, lng);
+  }
+
+  try {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
+      {
+        headers: {
+          'User-Agent': 'Ease-Academy/1.0 (contact@easeacademy.com)',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch address');
+    }
+
+    const data = await response.json();
+    return data?.display_name || formatCoordinates(lat, lng);
+  } catch (error) {
+    console.error('Reverse geocoding error:', error);
+    return formatCoordinates(lat, lng);
+  }
+};
+
+const AddressDisplay = ({ lat, lng }) => {
+  const [address, setAddress] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchAddress = async () => {
+      if (!lat || !lng) {
+        setAddress('Location not recorded');
+        return;
+      }
+
+      setAddress(`${formatCoordinates(lat, lng)} (Loading...)`);
+
+      const fetchedAddress = await reverseGeocodeLocation(lat, lng);
+
+      if (!cancelled) {
+        setAddress(fetchedAddress);
+      }
+    };
+
+    fetchAddress();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [lat, lng]);
+
+  return <p className="text-sm font-medium">{address}</p>;
+};
+
 const AttendanceViewModal = ({ open, onClose, attendanceRecord }) => {
-  if (!attendanceRecord) return null;
-
-  const [addresses, setAddresses] = useState({});
-
   const formatTime = (dateString) => {
     if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleTimeString([], {
@@ -37,85 +93,6 @@ const AttendanceViewModal = ({ open, onClose, attendanceRecord }) => {
     if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString();
   };
-
-  // Reverse geocoding function using OpenStreetMap Nominatim API
-  const reverseGeocode = async (lat, lng) => {
-    if (isMockModeEnabled()) {
-      return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-    }
-
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
-        {
-          headers: {
-            'User-Agent': 'Ease-Academy/1.0 (contact@easeacademy.com)',
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch address');
-      }
-
-      const data = await response.json();
-
-      if (data && data.display_name) {
-        return data.display_name;
-      } else {
-        return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-      }
-    } catch (error) {
-      console.error('Reverse geocoding error:', error);
-      return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-    }
-  };
-
-  // Get address from coordinates with caching
-  const getAddressFromCoordinates = async (lat, lng) => {
-    if (!lat || !lng) return 'Location not recorded';
-
-    const key = `${lat.toFixed(4)},${lng.toFixed(4)}`;
-
-    if (addresses[key]) {
-      return addresses[key];
-    }
-
-    // Start with coordinates while fetching
-    setAddresses(prev => ({ ...prev, [key]: `${lat.toFixed(4)}, ${lng.toFixed(4)} (Loading...)` }));
-
-    try {
-      const address = await reverseGeocode(lat, lng);
-      setAddresses(prev => ({ ...prev, [key]: address }));
-      return address;
-    } catch (error) {
-      const fallback = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-      setAddresses(prev => ({ ...prev, [key]: fallback }));
-      return fallback;
-    }
-  };
-
-  useEffect(() => {
-    if (attendanceRecord && open) {
-      // Fetch addresses for check-in and check-out locations
-      const fetchAddresses = async () => {
-        if (attendanceRecord.checkIn?.location) {
-          await getAddressFromCoordinates(
-            attendanceRecord.checkIn.location.latitude,
-            attendanceRecord.checkIn.location.longitude
-          );
-        }
-        if (attendanceRecord.checkOut?.location) {
-          await getAddressFromCoordinates(
-            attendanceRecord.checkOut.location.latitude,
-            attendanceRecord.checkOut.location.longitude
-          );
-        }
-      };
-
-      fetchAddresses();
-    }
-  }, [attendanceRecord, open]);
 
   const getStatusBadge = (status) => {
     const variants = {
@@ -174,46 +151,7 @@ const AttendanceViewModal = ({ open, onClose, attendanceRecord }) => {
     );
   };
 
-  // Component to display address with async loading
-  const AddressDisplay = ({ lat, lng }) => {
-    const [address, setAddress] = useState('');
-
-    useEffect(() => {
-      const fetchAddress = async () => {
-        if (!lat || !lng) {
-          setAddress('Location not recorded');
-          return;
-        }
-
-        const key = `${lat.toFixed(4)},${lng.toFixed(4)}`;
-
-        if (addresses[key]) {
-          setAddress(addresses[key]);
-          return;
-        }
-
-        // Start with loading state
-        setAddress(`${lat.toFixed(4)}, ${lng.toFixed(4)} (Loading...)`);
-        setAddresses(prev => ({ ...prev, [key]: `${lat.toFixed(4)}, ${lng.toFixed(4)} (Loading...)` }));
-
-        try {
-          const fetchedAddress = await reverseGeocode(lat, lng);
-          setAddress(fetchedAddress);
-          setAddresses(prev => ({ ...prev, [key]: fetchedAddress }));
-        } catch (error) {
-          const fallback = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-          setAddress(fallback);
-          setAddresses(prev => ({ ...prev, [key]: fallback }));
-        }
-      };
-
-      fetchAddress();
-    }, [lat, lng]);
-
-    return <p className="text-sm font-medium">{address}</p>;
-  };
-
-
+  if (!attendanceRecord) return null;
 
   return (
     <Modal

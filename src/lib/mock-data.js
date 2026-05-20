@@ -1,8 +1,55 @@
-const MOCK_BRANCH = {
-  _id: 'mock-branch-main',
-  name: 'Main Branch',
-  code: 'MAIN',
-};
+const MOCK_BRANCHES = [
+  {
+    _id: 'mock-branch-main',
+    name: 'Main Branch',
+    code: 'MAIN',
+    city: 'Karachi',
+    status: 'active',
+  },
+  {
+    _id: 'mock-branch-north',
+    name: 'North Branch',
+    code: 'NORTH',
+    city: 'Lahore',
+    status: 'active',
+  },
+  {
+    _id: 'mock-branch-south',
+    name: 'South Branch',
+    code: 'SOUTH',
+    city: 'Islamabad',
+    status: 'active',
+  },
+];
+
+const MOCK_BRANCH = MOCK_BRANCHES[0];
+
+const MOCK_DEPARTMENTS = [
+  {
+    _id: 'mock-dept-1',
+    name: 'General Studies',
+    code: 'GEN',
+    branchId: MOCK_BRANCHES[0]._id,
+    branchName: MOCK_BRANCHES[0].name,
+    status: 'active',
+  },
+  {
+    _id: 'mock-dept-2',
+    name: 'Science',
+    code: 'SCI',
+    branchId: MOCK_BRANCHES[0]._id,
+    branchName: MOCK_BRANCHES[0].name,
+    status: 'active',
+  },
+  {
+    _id: 'mock-dept-3',
+    name: 'Administration',
+    code: 'ADM',
+    branchId: MOCK_BRANCHES[1]._id,
+    branchName: MOCK_BRANCHES[1].name,
+    status: 'active',
+  },
+];
 
 const MOCK_USERS = [
   {
@@ -24,7 +71,14 @@ const MOCK_USERS = [
     password: 'BranchAdmin@123',
     branchId: MOCK_BRANCH._id,
     branchName: MOCK_BRANCH.name,
+    status: 'active',
+    lastLogin: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
+    profilePhoto: { url: 'https://ui-avatars.com/api/?name=Branch+Admin&background=0f62fe&color=fff', publicId: 'branch-admin-1' },
     adminProfile: {
+      documents: [
+        { type: 'cnic', name: 'CNIC Front', url: 'https://example.com/cnic-front.pdf' },
+        { type: 'cv', name: 'CV', url: 'https://example.com/cv.pdf' },
+      ],
       permissions: [
         'manage_users',
         'manage_students',
@@ -45,6 +99,76 @@ const MOCK_USERS = [
     password: 'Teacher@123',
     branchId: MOCK_BRANCH._id,
     branchName: MOCK_BRANCH.name,
+    status: 'active',
+    profilePhoto: { url: 'https://ui-avatars.com/api/?name=Teacher+One&background=0ea5e9&color=fff', publicId: 'teacher-1' },
+    teacherProfile: {
+      employeeId: 'T-1001',
+      designation: 'Senior Teacher',
+      departmentId: MOCK_DEPARTMENTS[0]._id,
+      department: MOCK_DEPARTMENTS[0].name,
+      joiningDate: '2022-09-01T00:00:00.000Z',
+      experience: { totalYears: 5 },
+      subjects: ['mock-subject-1', 'mock-subject-3'],
+      classes: ['mock-class-1', 'mock-class-2'],
+      qualifications: ['B.Ed', 'M.A. English'],
+      salaryDetails: {
+        basicSalary: 65000,
+        allowances: { transport: 5000, medical: 3000 },
+        deductions: { tax: 2000 },
+      },
+      bankAccount: {
+        bankName: 'HBL',
+        accountNumber: '1234567890',
+        iban: 'PK00HABB0000001234567890',
+      },
+      emergencyContact: {
+        name: 'Ali Demo',
+        relationship: 'Brother',
+        phone: '03001234567',
+      },
+      documents: [
+        { type: 'cnic', name: 'CNIC', url: 'https://example.com/teacher-cnic.pdf' },
+      ],
+    },
+  },
+  {
+    _id: 'mock-teacher-2',
+    role: 'teacher',
+    firstName: 'Teacher2',
+    lastName: 'Demo',
+    fullName: 'Teacher2 Demo',
+    email: 'teacher2@easeacademy.com',
+    password: 'Teacher@123',
+    branchId: MOCK_BRANCHES[1]._id,
+    branchName: MOCK_BRANCHES[1].name,
+    status: 'on_leave',
+    profilePhoto: { url: 'https://ui-avatars.com/api/?name=Teacher+Two&background=14b8a6&color=fff', publicId: 'teacher-2' },
+    teacherProfile: {
+      employeeId: 'T-1002',
+      designation: 'Teacher',
+      departmentId: MOCK_DEPARTMENTS[1]._id,
+      department: MOCK_DEPARTMENTS[1].name,
+      joiningDate: '2023-02-15T00:00:00.000Z',
+      experience: { totalYears: 3 },
+      subjects: ['mock-subject-2'],
+      classes: ['mock-class-1'],
+      qualifications: ['B.Sc'],
+      salaryDetails: {
+        basicSalary: 52000,
+        allowances: { transport: 4000 },
+        deductions: { tax: 1500 },
+      },
+      bankAccount: {
+        bankName: 'Meezan Bank',
+        accountNumber: '9876543210',
+      },
+      emergencyContact: {
+        name: 'Sara Demo',
+        relationship: 'Sister',
+        phone: '03111234567',
+      },
+      documents: [],
+    },
   },
   {
     _id: 'mock-student-1',
@@ -89,6 +213,39 @@ export function getMockUsers() {
   return MOCK_USERS;
 }
 
+export function getMockBranches() {
+  return MOCK_BRANCHES.map((branch) => ({ ...branch }));
+}
+
+export function getMockBranchById(branchId) {
+  return MOCK_BRANCHES.find((branch) => branch._id === branchId) || null;
+}
+
+export function getMockDepartments(branchId = null) {
+  return MOCK_DEPARTMENTS
+    .filter((department) => !branchId || department.branchId === branchId)
+    .map((department) => ({
+      ...department,
+      branchId: getMockBranchById(department.branchId) || department.branchId,
+    }));
+}
+
+export function getMockBranchAdmins() {
+  return MOCK_USERS.filter((user) => user.role === 'branch_admin').map((user) => {
+    const branch = getMockBranchById(user.branchId);
+
+    return {
+      ...user,
+      branchId: branch,
+      branchName: branch?.name,
+      status: user.status || 'active',
+      lastLogin: user.lastLogin || new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
+      documents: user.adminProfile?.documents || [],
+      profilePhoto: user.profilePhoto || null,
+    };
+  });
+}
+
 export function getMockUserByEmail(email) {
   return MOCK_USERS.find((user) => user.email.toLowerCase() === String(email || '').toLowerCase()) || null;
 }
@@ -115,6 +272,22 @@ export function toSafeMockUser(user) {
     isActive: true,
     adminProfile: user.adminProfile || { permissions: [] },
     permissions: user.adminProfile?.permissions || [],
+  };
+}
+
+export function toMockClientUser(user) {
+  if (!user) {
+    return null;
+  }
+
+  const branch = user.branchId ? getMockBranchById(user.branchId) : null;
+
+  return {
+    ...toSafeMockUser(user),
+    branchId: branch || user.branchId,
+    branchName: branch?.name || user.branchName,
+    branchCode: branch?.code || (user.branchId ? MOCK_BRANCH.code : undefined),
+    branchIdValue: branch?._id || user.branchId,
   };
 }
 

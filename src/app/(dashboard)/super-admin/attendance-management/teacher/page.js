@@ -77,16 +77,15 @@ export default function TeacherAttendancePage() {
 
   const [attendance, setAttendance] = useState({});
 
-  useEffect(() => {
-    fetchBranches();
-    fetchDepartments();
-  }, []);
+  function initialiseAttendance(records) {
+    const nextAttendance = {};
+    records.forEach((record) => {
+      nextAttendance[record._id] = 'present';
+    });
+    setAttendance(nextAttendance);
+  }
 
-  useEffect(() => {
-    fetchTeachers();
-  }, [filters.branchId, filters.departmentId]);
-
-  const fetchBranches = async () => {
+  async function fetchBranches() {
     try {
       const response = await apiClient.get('/api/super-admin/branches?limit=200');
       if (response.success) {
@@ -97,9 +96,9 @@ export default function TeacherAttendancePage() {
       console.warn('Falling back to sample branches', error);
     }
     setBranches(FALLBACK_BRANCHES);
-  };
+  }
 
-  const fetchDepartments = async () => {
+  async function fetchDepartments() {
     try {
       const response = await apiClient.get('/api/super-admin/departments?limit=200');
       if (response.success) {
@@ -110,9 +109,9 @@ export default function TeacherAttendancePage() {
       console.warn('Falling back to sample departments', error);
     }
     setDepartments(FALLBACK_DEPARTMENTS);
-  };
+  }
 
-  const fetchTeachers = async () => {
+  async function fetchTeachers() {
     setLoading(true);
     try {
       const params = new URLSearchParams({ 
@@ -140,15 +139,16 @@ export default function TeacherAttendancePage() {
       initialiseAttendance(filtered);
       return filtered;
     });
-  };
+  }
 
-  const initialiseAttendance = (records) => {
-    const nextAttendance = {};
-    records.forEach((record) => {
-      nextAttendance[record._id] = 'present';
-    });
-    setAttendance(nextAttendance);
-  };
+  useEffect(() => {
+    fetchBranches();
+    fetchDepartments();
+  }, []);
+
+  useEffect(() => {
+    fetchTeachers();
+  }, [filters.branchId, filters.departmentId]);
 
   const stats = useMemo(() => {
     const total = Object.keys(attendance).length;

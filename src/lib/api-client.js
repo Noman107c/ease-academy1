@@ -2,13 +2,18 @@ import axios from 'axios';
 import { API_CONFIG, API_ENDPOINTS, buildUrl, getFullUrl } from '@/constants/api-endpoints';
 import {
   MOCK_BRANCH,
+  getMockBranchAdmins,
   getMockBranchAdminDashboard,
+  getMockBranches,
+  getMockDepartments,
+  getMockBranchById,
   getMockSuperAdminDashboardStats,
   getMockTeacherClasses,
   getMockUserByEmail,
   getMockUserById,
   getMockUsers,
   isMockModeEnabled,
+  toMockClientUser,
   toSafeMockUser,
 } from '@/lib/mock-data';
 
@@ -256,6 +261,15 @@ function getMockAuthUser() {
   return null;
 }
 
+function getActiveMockBranchId(config) {
+  const branchIdFromParams = config?.params?.branchId || config?.params?.branch;
+  if (branchIdFromParams) return branchIdFromParams;
+
+  const authUser = getMockAuthUser();
+  const branchId = authUser?.branchId;
+  return typeof branchId === 'object' ? branchId?._id : branchId;
+}
+
 function getMockStudents() {
   return getMockUsers()
     .filter((user) => user.role === 'student')
@@ -271,14 +285,47 @@ function getMockStudents() {
     }));
 }
 
-function getMockTeachers() {
+function getMockTeachers(branchId = null) {
   return getMockUsers()
     .filter((user) => user.role === 'teacher')
-    .map((user) => ({
-      ...toSafeMockUser(user),
-      departmentName: 'General',
-      status: 'active',
-    }));
+    .filter((user) => !branchId || user.branchId === branchId)
+    .map((user, index) => {
+      const branch = getMockBranchById(user.branchId);
+      const department = getMockDepartments(user.branchId)[index % getMockDepartments(user.branchId).length] || null;
+      const teacherProfile = user.teacherProfile || {};
+
+      return {
+        ...toMockClientUser(user),
+        branchId: branch,
+        branchName: branch?.name,
+        status: user.status || 'active',
+        teacherProfile: {
+          employeeId: teacherProfile.employeeId || `T-${1000 + index}`,
+          designation: teacherProfile.designation || 'Teacher',
+          departmentId: department || teacherProfile.departmentId,
+          department: department?.name || teacherProfile.department,
+          joiningDate: teacherProfile.joiningDate || '2022-09-01T00:00:00.000Z',
+          experience: teacherProfile.experience || { totalYears: 3 },
+          subjects: (teacherProfile.subjects || []).map((subjectId) => {
+            const subject = getMockSubjects().find((entry) => entry._id === subjectId) || null;
+            return subject || { _id: subjectId, name: subjectId };
+          }),
+          classes: (teacherProfile.classes || []).map((classId) => {
+            const classItem = getMockClasses().find((entry) => entry._id === classId) || null;
+            return classItem || { _id: classId, name: classId };
+          }),
+          qualifications: teacherProfile.qualifications || ['B.Ed'],
+          salaryDetails: teacherProfile.salaryDetails || { basicSalary: 50000, allowances: {}, deductions: {} },
+          bankAccount: teacherProfile.bankAccount || { bankName: 'HBL', accountNumber: '1234567890' },
+          emergencyContact: teacherProfile.emergencyContact || { name: 'Emergency Contact', relationship: 'Family', phone: '03000000000' },
+          documents: teacherProfile.documents || [],
+        },
+      };
+    });
+}
+
+function getMockTeacherById(teacherId, branchId = null) {
+  return getMockTeachers(branchId).find((teacher) => teacher._id === teacherId) || null;
 }
 
 function getMockParents() {
@@ -302,6 +349,7 @@ function getMockStaff() {
 function getMockClasses() {
   return MOCK_CLASSES.map((classItem) => ({
     ...classItem,
+    branchId: getMockBranchById(classItem.branchId) || classItem.branchId,
     branchName: MOCK_BRANCH.name,
     studentCount: classItem._id === 'mock-class-1' ? 35 : 31,
   }));
@@ -310,7 +358,7 @@ function getMockClasses() {
 function getMockSubjects() {
   return MOCK_SUBJECTS.map((subject) => ({
     ...subject,
-    branchId: MOCK_BRANCH._id,
+    branchId: getMockBranchById(MOCK_BRANCH._id),
     branchName: MOCK_BRANCH.name,
   }));
 }
@@ -319,7 +367,75 @@ function getMockNotifications() {
   return MOCK_NOTIFICATIONS.map((notification) => ({ ...notification }));
 }
 
-async function buildMockResponse(method, endpoint, data = null) {
+function getMockStudentTrends() {
+  return [
+    { month: 'Jan', students: 72, growth: 6 },
+    { month: 'Feb', students: 78, growth: 8 },
+    { month: 'Mar', students: 83, growth: 6 },
+    { month: 'Apr', students: 88, growth: 6 },
+    { month: 'May', students: 94, growth: 7 },
+    { month: 'Jun', students: 100, growth: 6 },
+  ];
+}
+
+function getMockClassWiseStudents() {
+  return [
+    { class: 'Grade 1', students: 18 },
+    { class: 'Grade 2', students: 16 },
+    { class: 'Grade 3', students: 20 },
+    { class: 'Grade 4', students: 22 },
+    { class: 'Grade 5', students: 24 },
+  ];
+}
+
+function getMockBranchWiseStudents() {
+  return [
+    { branch: 'Main Branch', students: 100, code: 'MAIN' },
+    { branch: 'North Branch', students: 86, code: 'NORTH' },
+    { branch: 'South Branch', students: 74, code: 'SOUTH' },
+  ];
+}
+
+function getMockAttendanceByClass() {
+  return [
+    { class: 'Grade 1', percentage: 94 },
+    { class: 'Grade 2', percentage: 91 },
+    { class: 'Grade 3', percentage: 87 },
+    { class: 'Grade 4', percentage: 83 },
+    { class: 'Grade 5', percentage: 79 },
+  ];
+}
+
+function getMockMonthlyFeeCollection() {
+  return [
+    { month: 'Jan', approvedAmount: 120000, pendingAmount: 18000 },
+    { month: 'Feb', approvedAmount: 135000, pendingAmount: 16000 },
+    { month: 'Mar', approvedAmount: 142000, pendingAmount: 14000 },
+    { month: 'Apr', approvedAmount: 150000, pendingAmount: 12000 },
+    { month: 'May', approvedAmount: 158000, pendingAmount: 10000 },
+    { month: 'Jun', approvedAmount: 166000, pendingAmount: 9000 },
+  ];
+}
+
+function getMockFeesCollectedVsPending() {
+  return [
+    { period: 'Jan', collected: 4200, pending: 1200 },
+    { period: 'Feb', collected: 4500, pending: 1100 },
+    { period: 'Mar', collected: 4700, pending: 900 },
+    { period: 'Apr', collected: 5100, pending: 850 },
+    { period: 'May', collected: 5300, pending: 700 },
+    { period: 'Jun', collected: 5600, pending: 600 },
+  ];
+}
+
+function getMockPassFailRatio() {
+  return [
+    { name: 'Pass', value: 84, color: '#10b981' },
+    { name: 'Fail', value: 16, color: '#ef4444' },
+  ];
+}
+
+async function buildMockResponse(method, endpoint, data = null, config = {}) {
   const normalizedEndpoint = String(endpoint || '').split('?')[0];
   const upperMethod = String(method || 'GET').toUpperCase();
 
@@ -343,7 +459,7 @@ async function buildMockResponse(method, endpoint, data = null) {
     return {
       success: true,
       data: {
-        user,
+        user: toMockClientUser(mockUser),
         accessToken: `mock.${encodedPayload}.token`,
         refreshToken: `mock.${encodedPayload}.refresh`,
       },
@@ -385,6 +501,47 @@ async function buildMockResponse(method, endpoint, data = null) {
     return createMockCollection(getMockTeacherClasses(), 'classes');
   }
 
+  if (normalizedEndpoint.includes('/super-admin/users') && config?.params?.role === 'branch_admin') {
+    return createMockCollection(getMockBranchAdmins(), 'users');
+  }
+
+  const teacherDetailMatch = normalizedEndpoint.match(/\/(super-admin|branch-admin)\/teachers\/([^/]+)$/);
+  if (teacherDetailMatch) {
+    const [, teacherScope, teacherId] = teacherDetailMatch;
+    const activeBranchId = teacherScope === 'branch-admin' ? getActiveMockBranchId(config) : null;
+    const teacher = getMockTeacherById(teacherId, activeBranchId);
+
+    return teacher
+      ? createMockPayload(teacher)
+      : { success: false, message: 'Teacher not found' };
+  }
+
+  if (normalizedEndpoint.includes('/super-admin/teachers')) {
+    return createMockPayload(getMockTeachers());
+  }
+
+  if (normalizedEndpoint.includes('/branch-admin/teachers')) {
+    const activeBranchId = getActiveMockBranchId(config);
+    return createMockPayload(getMockTeachers(activeBranchId));
+  }
+
+  if (normalizedEndpoint.includes('/super-admin/branches') || normalizedEndpoint.includes('/branch-admin/branches')) {
+    return createMockCollection(getMockBranches(), 'branches');
+  }
+
+  if (normalizedEndpoint.includes('/super-admin/departments') || normalizedEndpoint.includes('/branch-admin/departments')) {
+    const branchId = getActiveMockBranchId(config);
+    return createMockCollection(getMockDepartments(branchId), 'departments');
+  }
+
+  if (normalizedEndpoint.includes('/super-admin/classes') || normalizedEndpoint.includes('/branch-admin/classes') || normalizedEndpoint.includes('/school/classes')) {
+    return createMockCollection(getMockClasses(), 'classes');
+  }
+
+  if (normalizedEndpoint.includes('/super-admin/subjects') || normalizedEndpoint.includes('/branch-admin/subjects') || normalizedEndpoint.includes('/school/subjects')) {
+    return createMockCollection(getMockSubjects(), 'subjects');
+  }
+
   if (normalizedEndpoint.includes('/notifications/web-notifications')) {
     const notifications = getMockNotifications();
     const unreadCount = notifications.filter((notification) => !notification.isRead).length;
@@ -405,6 +562,34 @@ async function buildMockResponse(method, endpoint, data = null) {
     };
   }
 
+  if (normalizedEndpoint.includes('/branch-admin/charts/student-trends') || normalizedEndpoint.includes('/super-admin/charts/student-trends')) {
+    return createMockPayload(getMockStudentTrends());
+  }
+
+  if (normalizedEndpoint.includes('/branch-admin/charts/class-wise-students') || normalizedEndpoint.includes('/super-admin/charts/class-wise-students')) {
+    return createMockPayload(getMockClassWiseStudents());
+  }
+
+  if (normalizedEndpoint.includes('/branch-admin/charts/branch-wise-students') || normalizedEndpoint.includes('/super-admin/charts/branch-wise-students')) {
+    return createMockPayload(getMockBranchWiseStudents());
+  }
+
+  if (normalizedEndpoint.includes('/branch-admin/charts/student-attendance') || normalizedEndpoint.includes('/super-admin/charts/student-attendance')) {
+    return createMockPayload(getMockAttendanceByClass());
+  }
+
+  if (normalizedEndpoint.includes('/branch-admin/charts/monthly-fee-collection') || normalizedEndpoint.includes('/super-admin/charts/monthly-fee-collection')) {
+    return createMockPayload(getMockMonthlyFeeCollection());
+  }
+
+  if (normalizedEndpoint.includes('/branch-admin/charts/fees-collected-pending')) {
+    return createMockPayload(getMockFeesCollectedVsPending());
+  }
+
+  if (normalizedEndpoint.includes('/branch-admin/charts/pass-fail-ratio') || normalizedEndpoint.includes('/super-admin/charts/pass-fail-ratio')) {
+    return createMockPayload(getMockPassFailRatio());
+  }
+
   if (normalizedEndpoint.includes('/branch-admin/fee-vouchers') || normalizedEndpoint.includes('/super-admin/fee-vouchers')) {
     return {
       success: true,
@@ -421,16 +606,8 @@ async function buildMockResponse(method, endpoint, data = null) {
     return createMockCollection(MOCK_ACADEMIC_YEARS, 'academicYears');
   }
 
-  if (normalizedEndpoint.includes('/branches')) {
-    return createMockCollection(MOCK_BRANCHES, 'branches');
-  }
-
   if (normalizedEndpoint.includes('/students')) {
     return createMockCollection(getMockStudents(), 'students');
-  }
-
-  if (normalizedEndpoint.includes('/teachers')) {
-    return createMockCollection(getMockTeachers(), 'teachers');
   }
 
   if (normalizedEndpoint.includes('/parents')) {
@@ -439,14 +616,6 @@ async function buildMockResponse(method, endpoint, data = null) {
 
   if (normalizedEndpoint.includes('/staff')) {
     return createMockCollection(getMockStaff(), 'staff');
-  }
-
-  if (normalizedEndpoint.includes('/classes')) {
-    return createMockCollection(getMockClasses(), 'classes');
-  }
-
-  if (normalizedEndpoint.includes('/subjects')) {
-    return createMockCollection(getMockSubjects(), 'subjects');
   }
 
   if (normalizedEndpoint.includes('/events')) {
@@ -475,15 +644,6 @@ async function buildMockResponse(method, endpoint, data = null) {
         { time: '10:00 AM', class: 'Class 10B', subject: 'Mathematics' },
         { time: '02:00 PM', class: 'Class 9A', subject: 'Mathematics' },
       ],
-    });
-  }
-
-  if (normalizedEndpoint.includes('/branch-admin/charts') || normalizedEndpoint.includes('/super-admin/charts')) {
-    return createMockPayload({
-      data: [],
-      labels: [],
-      series: [],
-      categories: [],
     });
   }
 
@@ -653,7 +813,7 @@ class ApiClient {
 
     try {
       if (isMockModeEnabled()) {
-        const mockResponse = await buildMockResponse(method, endpoint, data);
+        const mockResponse = await buildMockResponse(method, endpoint, data, config);
         this.loading = false;
         return mockResponse;
       }
@@ -840,5 +1000,4 @@ class ApiClient {
 const client = new ApiClient();
 
 export { apiClient as axiosInstance };
-export { setAccessToken, getAccessToken, clearAccessToken };
 export default client;

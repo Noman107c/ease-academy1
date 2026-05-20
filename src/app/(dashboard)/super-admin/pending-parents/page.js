@@ -1,5 +1,21 @@
 'use client';
 import { useState, useEffect } from 'react';
+import {
+  RefreshCw,
+  Users,
+  Clock,
+  CheckCircle2,
+  Search,
+  User,
+  CheckSquare,
+  CheckCircle,
+  X,
+  Mail,
+  Phone,
+  MapPin,
+  Calendar,
+  Eye,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -7,6 +23,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import ButtonLoader from '@/components/ui/button-loader';
 import FullPageLoader from '@/components/ui/full-page-loader';
+import Modal from '@/components/ui/modal';
 export default function PendingParentsPage() {
   const [parents, setParents] = useState([]);
   const [filteredParents, setFilteredParents] = useState([]);
